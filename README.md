@@ -1,1 +1,1 @@
-# structure_representation
+# Hierarchical music structure analysis and comparisons
