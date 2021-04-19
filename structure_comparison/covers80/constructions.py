@@ -62,6 +62,7 @@ def segment(filedir, rs_size, kmin, kmax):
     evals, evecs = scipy.linalg.eigh(L)
     #eigenvector filtering
     evecs = scipy.ndimage.median_filter(evecs, size=(9, 1))
+
     #normalization
     Cnorm = np.cumsum(evecs**2, axis=1)**0.5
     dist_set = []
@@ -69,10 +70,10 @@ def segment(filedir, rs_size, kmin, kmax):
         Xs = evecs[:, :k] / Cnorm[:, k-1:k]
         distance = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(Xs, metric='euclidean'))
         dist_set.append(distance)
-
+    dist_set = np.asarray(dist_set)
+    
     #return
     return(dist_set)
-
 
 #Importing
 import librosa
@@ -94,12 +95,17 @@ import glob
 import os
 import random
 
+#--supress warnings--#
+import warnings
+warnings.filterwarnings("ignore")
+
 
 #--reading--#
 
 all_dirs = []
 all_names = []
 all_roots = []
+max_files = 4
 for root, dirs, files in os.walk('../../../Datasets/covers80/covers32k'):
         for name in files:
             if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
@@ -107,6 +113,10 @@ for root, dirs, files in os.walk('../../../Datasets/covers80/covers32k'):
                 all_dirs.append(filepath)
                 all_names.append(name[:-4])
                 all_roots.append(root)
+                if len(all_dirs)>=max_files:
+                    break
+        if len(all_dirs)>=max_files:
+            break        
 file_no = len(all_dirs)
 
 
@@ -134,7 +144,8 @@ all_flat = [] #kmax-kmin sets each with a flattened matrix
 all_merged = [] #single concatenated vector with all flattened matrices
 
 #resampling parameters
-for rs_size in [32, 64, 128, 256]:
+# for rs_size in [32, 64, 128, 256]:
+for rs_size in [128]:
     #approximations
     for approx in [[2,6], [2,10], [3,7], [3,11]]:
 
@@ -152,7 +163,7 @@ for rs_size in [32, 64, 128, 256]:
             flat_approximations = []
             merged_approximations = np.empty((0))
             for j in range(approx[1]-approx[0]):
-                flat_approximations.append(all_struct[i][j].flatten())
+                flat_approximations.append(struct[j].flatten())
                 merged_approximations = np.concatenate((merged_approximations, flat_approximations[j]))
             all_flat.append(np.asarray(flat_approximations))
             all_merged.append(merged_approximations)
@@ -160,11 +171,20 @@ for rs_size in [32, 64, 128, 256]:
             #progress
             sys.stdout.write("\rSegmented %i/%s pieces." % ((f+1), str(file_no)))
             sys.stdout.flush()
-        
+        print('')
+
+        #plot approximations
+        fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
+        for i in range(approx[1]-approx[0]):
+            axs[i].matshow(all_struct[0][i])
+        plt.savefig('approximations'+str(rs_size))
+
         #list to numpy array
         all_struct = np.asarray(all_struct)
         all_flat = np.asarray(all_flat)
         all_merged = np.asarray(all_merged)
+
+        print(np.sum(all_merged))
 
         #figure directory
         fig_dir = '../../../figures/covers80/'
@@ -180,8 +200,8 @@ for rs_size in [32, 64, 128, 256]:
         
         L1_distances_covers = []
         L1_distances_noncovers = []
-        for i in range(all_flat.shape[0]):
-            for j in range(all_flat.shape[0]):
+        for i in range(file_no):
+            for j in range(file_no):
                 if covers[i][j]:
                     if (L1_distances[i][j] != 0):
                         L1_distances_covers.append(L1_distances[i][j])
@@ -220,8 +240,8 @@ for rs_size in [32, 64, 128, 256]:
 
         fro_distances_covers = []
         fro_distances_noncovers = []
-        for i in range(all_flat.shape[0]):
-            for j in range(all_flat.shape[0]):
+        for i in range(file_no):
+            for j in range(file_no):
                 if covers[i][j]:
                     if (fro_distances[i][j] != 0):
                         fro_distances_covers.append(fro_distances[i][j])
