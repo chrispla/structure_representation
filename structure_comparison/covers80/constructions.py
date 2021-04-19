@@ -139,14 +139,14 @@ distances = {}
 
 #--traverse parameters, compute segmentations, save evaluation--#
 
-all_struct = [] #kmax-kmin sets each with a square matrix
-all_flat = [] #kmax-kmin sets each with a flattened matrix
-all_merged = [] #single concatenated vector with all flattened matrices
-
 #resampling parameters
-for rs_size in [32, 64, 128, 256]:
+for rs_size in [64, 128, 256]:
     #approximations
     for approx in [[2,6], [2,10], [3,7], [3,11]]:
+
+        all_struct = [] #kmax-kmin sets each with a square matrix
+        all_flat = [] #kmax-kmin sets each with a flattened matrix
+        all_merged = [] #single concatenated vector with all flattened matrices
 
         print("--------------------")
         print("Resampling size:", str(rs_size))
