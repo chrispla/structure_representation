@@ -105,8 +105,8 @@ warnings.filterwarnings("ignore")
 all_dirs = []
 all_names = []
 all_roots = []
-max_files = 4
-for root, dirs, files in os.walk('../../../Datasets/covers80/covers32k'):
+max_files = 10
+for root, dirs, files in os.walk('/Users/chris/Google Drive/Classes/Capstone/Datasets/covers80/covers32k'):
         for name in files:
             if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
                 filepath = os.path.join(root, name)
@@ -144,8 +144,7 @@ all_flat = [] #kmax-kmin sets each with a flattened matrix
 all_merged = [] #single concatenated vector with all flattened matrices
 
 #resampling parameters
-# for rs_size in [32, 64, 128, 256]:
-for rs_size in [128]:
+for rs_size in [32, 64, 128, 256]:
     #approximations
     for approx in [[2,6], [2,10], [3,7], [3,11]]:
 
@@ -156,7 +155,7 @@ for rs_size in [128]:
         #songs
         for f in range(file_no):
             #structure segmentation
-            struct = segment(filepath, rs_size, approx[0], approx[1])
+            struct = segment(all_dirs[f], rs_size, approx[0], approx[1])
             all_struct.append(struct)
 
             #formatting
@@ -183,8 +182,6 @@ for rs_size in [128]:
         all_struct = np.asarray(all_struct)
         all_flat = np.asarray(all_flat)
         all_merged = np.asarray(all_merged)
-
-        print(np.sum(all_merged))
 
         #figure directory
         fig_dir = '../../../figures/covers80/'
@@ -275,8 +272,8 @@ for rs_size in [128]:
         for i in range(file_no):
             for j in range(file_no):
                 costs = []
-                for k in range(approx[0]-approx[1]):           
-                    costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=True, metric='euclidean')[0][127,127])
+                for k in range(approx[1]-approx[0]):           
+                    costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=True, metric='euclidean')[0][rs_size-1,rs_size-1])
                 dtw_cost[i][j] = sum(costs)/len(costs)
         key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-dtw'
         distances[key] = dtw_cost
@@ -358,8 +355,8 @@ for rs_size in [128]:
         for i in range(file_no):
             for j in range(file_no):
                 dists = []
-                for n in range(approx[0]-approx[1]):
-                    for m in range(approx[0]-approx[1]):
+                for n in range(approx[1]-approx[0]):
+                    for m in range(approx[1]-approx[0]):
                         dists.append(np.linalg.norm(all_struct[i][n]-all_struct[j][m]))
                 min_distances[i][j] = min(dists)
         key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-pair'
