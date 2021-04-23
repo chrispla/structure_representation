@@ -96,8 +96,8 @@ import os
 import random
 
 #--supress warnings--#
-#import warnings
-#warnings.filterwarnings("ignore")
+import warnings
+warnings.filterwarnings("ignore")
 
 
 #--reading--#
@@ -105,7 +105,7 @@ import random
 all_dirs = []
 all_names = []
 all_roots = []
-max_files = 4
+max_files = 4000
 for root, dirs, files in os.walk('/Users/chris/Google Drive/Classes/Capstone/Datasets/deformations/'):
         for name in files:
             if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
@@ -150,7 +150,7 @@ for f in range(file_no):
     #formatting
     flat_approximations = []
     merged_approximations = np.empty((0))
-    for j in range(approx[1]-approx[0]):
+    for j in range(6):
         flat_approximations.append(struct[j].flatten())
         merged_approximations = np.concatenate((merged_approximations, flat_approximations[j]))
     all_flat.append(np.asarray(flat_approximations))
@@ -161,11 +161,11 @@ for f in range(file_no):
     sys.stdout.flush()
 print('')
 
-#plot approximations
-fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
-for i in range(approx[1]-approx[0]):
-    axs[i].matshow(all_struct[0][i])
-plt.savefig('approximations'+str(rs_size))
+# #plot approximations
+# fig, axs = plt.subplots(1, 6, figsize=(20, 20))
+# for i in range(6):
+#     axs[i].matshow(all_struct[0][i])
+# plt.savefig('approximations')
 
 #list to numpy array
 all_struct = np.asarray(all_struct)
@@ -183,9 +183,8 @@ for i in range(file_no):
     for j in range(file_no):
         L1_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j], ord=1)
 
-key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-L1'
+key = 'L1'
 distances[key] = L1_distances
-
 
 
 print("Computed L1 distances.")
@@ -195,7 +194,7 @@ fro_distances = np.zeros((file_no, file_no))
 for i in range(file_no):
     for j in range(file_no):
         fro_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j])
-key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-fro'
+key = 'fro'
 distances[key] = fro_distances
        
 
@@ -206,12 +205,11 @@ dtw_cost = np.zeros((file_no, file_no))
 for i in range(file_no):
     for j in range(file_no):
         costs = []
-        for k in range(approx[0]-approx[1]):           
+        for k in range(6):           
             costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=True, metric='euclidean')[0][127,127])
         dtw_cost[i][j] = sum(costs)/len(costs)
-key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-dtw'
+key = 'dtw'
 distances[key] = dtw_cost
-
 
 
 print("Computed DTW cost.")
@@ -221,7 +219,7 @@ hausdorff_distances = np.zeros((file_no, file_no))
 for i in range(file_no):
     for j in range(file_no):
         hausdorff_distances[i][j] = (directed_hausdorff(all_flat[i], all_flat[j]))[0]
-key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-hau'
+key = 'hau'
 distances[key] = hausdorff_distances
 
 
@@ -232,18 +230,26 @@ min_distances = np.zeros((file_no, file_no))
 for i in range(file_no):
     for j in range(file_no):
         dists = []
-        for n in range(approx[0]-approx[1]):
-            for m in range(approx[0]-approx[1]):
+        for n in range(6):
+            for m in range(6):
                 dists.append(np.linalg.norm(all_struct[i][n]-all_struct[j][m]))
         min_distances[i][j] = min(dists)
-key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-pair'
+key = 'pair'
 distances[key] = min_distances
 
 print("Computed minimum pairwise distance.")
 
 
 for f in range(0, file_no, 13):
-    dist_matrix = np.zeros((13,13))
-    for x in range(13):
-        for y in range(13):
-            dist_matrix[x][y] = 
+    for metric in ['L1', 'fro', 'hau', 'pair', 'dtw']:
+        D = np.zeros((13,13))
+        for x in range(13):
+            for y in range(13):
+                D[x][y] = distances[metric][f+x][f+y]
+        plt.figure()
+        plt.matshow(D)
+        plt.title(metric+'-'+all_names[f])
+        plt.savefig(fig_dir+metric)
+
+
+        
