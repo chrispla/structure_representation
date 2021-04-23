@@ -1,16 +1,15 @@
-def segment(filedir, rs_size, kmin, kmax):
+def segment(y, s, rs_size, kmin, kmax, filter):
     """structurally segments the selected audio
 
         ds_size: side length to which combined matrix is going to be resampled to
         [kmin, kmax]: min and maximum approximation ranks
+        filtering: True or False, whether memory stacking, timelag and path enhance are going to be used
 
     returns set of low rank approximations"""
 
-    #load audio
-    y, sr = librosa.load(filedir, sr=16000, mono=True)
-
     #compute cqt
-    C = librosa.amplitude_to_db(np.abs(librosa.cqt(y=y, sr=sr,
+    C = librosa.amplitude_to_db(np.abs(librosa.cqt(y=y, sr=sr, 
+                                        hop_length=512,
                                         bins_per_octave=12*3,
                                         n_bins=7*12*3)),
                                         ref=np.max)
@@ -22,15 +21,17 @@ def segment(filedir, rs_size, kmin, kmax):
     Csync = librosa.util.sync(C, beats, aggregate=np.median)
 
     #stack memory
-    Cstack = librosa.feature.stack_memory(Csync, 4)
+    if filter:
+        Csync = librosa.feature.stack_memory(Csync, 4)
 
     #Affinity matrix
-    R = librosa.segment.recurrence_matrix(Cstack, width=3, mode='affinity', sym=True)
+    R = librosa.segment.recurrence_matrix(Csync, width=3, mode='affinity', sym=True)
 
     #Filtering
-    df = librosa.segment.timelag_filter(scipy.ndimage.median_filter)
-    Rf = df(R, size=(1, 7))
-    Rf = librosa.segment.path_enhance(Rf, 15)
+    if filter:  
+        df = librosa.segment.timelag_filter(scipy.ndimage.median_filter)
+        R = df(R, size=(1, 7))
+        R = librosa.segment.path_enhance(R, 15)
 
     #mfccs
     mfcc = librosa.feature.mfcc(y=y, sr=sr)
@@ -46,11 +47,11 @@ def segment(filedir, rs_size, kmin, kmax):
 
     #weighted combination of affinity matrix and mfcc diagonal
     deg_path = np.sum(R_path, axis=1)
-    deg_rec = np.sum(Rf, axis=1)
+    deg_rec = np.sum(R, axis=1)
 
     mu = deg_path.dot(deg_path + deg_rec) / np.sum((deg_path + deg_rec)**2)
 
-    A = mu * Rf + (1 - mu) * R_path
+    A = mu * R + (1 - mu) * R_path
 
     #resampling
     A_d = cv2.resize(A, (rs_size, rs_size))
@@ -65,12 +66,42 @@ def segment(filedir, rs_size, kmin, kmax):
 
     #normalization
     Cnorm = np.cumsum(evecs**2, axis=1)**0.5
+
+    #temporary replacement for bug
+    a_min_value = 3.6934424e-08
+    Cnorm[Cnorm == 0.0] = a_min_value
+    if (np.isnan(np.sum(Cnorm))):
+        print("WOOOOOAH")
+    
+    # print("Cnorm shape:",Cnorm.shape)
+    # plt.matshow(Cnorm)
+    # plt.savefig(filedir[-10:-4])
+
+    #approximations
     dist_set = []
     for k in range(kmin, kmax):
+
+        # #debug
+        # print(np.all(Cnorm[:, k-1:k]))
+        # divisor = Cnorm[:, k-1:k]
+        # if not np.all(divisor):
+        #     print("0 divisor")
+
         Xs = evecs[:, :k] / Cnorm[:, k-1:k]
+        
+
+        #debug
+        if np.isnan(np.sum(Xs)):
+            print('woops')
+            # fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
+            # for i in range(approx[1]-approx[0]):
+            #     axs[i].matshow(struct[i])
+            # plt.savefig(filedir[-10:-1])
+
         distance = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(Xs, metric='euclidean'))
         dist_set.append(distance)
     dist_set = np.asarray(dist_set)
+    
     
     #return
     return(dist_set)
@@ -105,7 +136,8 @@ warnings.filterwarnings("ignore")
 all_dirs = []
 all_names = []
 all_roots = []
-max_files = 10
+all_audio = []
+max_files = 40000
 for root, dirs, files in os.walk('/Users/chris/Google Drive/Classes/Capstone/Datasets/covers80/covers32k'):
         for name in files:
             if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
@@ -113,11 +145,23 @@ for root, dirs, files in os.walk('/Users/chris/Google Drive/Classes/Capstone/Dat
                 all_dirs.append(filepath)
                 all_names.append(name[:-4])
                 all_roots.append(root)
+
                 if len(all_dirs)>=max_files:
                     break
         if len(all_dirs)>=max_files:
             break        
 file_no = len(all_dirs)
+
+#load audio
+for f in range(file_no):
+    y, sr = librosa.load(all_dirs[f], sr=16000, mono=True)
+    #bug: empty mel bins
+    all_audio.append((y,sr))
+
+    #progress
+    sys.stdout.write("\rLoading %i/%s pieces." % ((f+1), str(file_no)))
+    sys.stdout.flush()
+print('')
 
 
 #--cover (True) vs non-cover (False)--#
@@ -136,13 +180,22 @@ format: rs_size-approx[0]-approx[1]-distance e.g. 128-2-8-L1
 """
 distances = {}
 
+#--Score dictionary--#
+"""Terminology
+distances: L1, fro, dtw, hau, pair
+format: rs_size-approx[0]-approx[1]-distance e.g. 128-2-8-L1
+"""
+scores = {}
+
 
 #--traverse parameters, compute segmentations, save evaluation--#
 
 #resampling parameters
-for rs_size in [64, 128, 256]:
+#for rs_size in [32]:
+#for rs_size in [16, 32, 64, 128]:
     #approximations
-    for approx in [[2,6], [2,10], [3,7], [3,11]]:
+    #for approx in [[2,6], [2,10], [4,8], [4,12]]:
+    for approx in [[3,7], [7,11], [3,11]]:
 
         all_struct = [] #kmax-kmin sets each with a square matrix
         all_flat = [] #kmax-kmin sets each with a flattened matrix
@@ -155,8 +208,15 @@ for rs_size in [64, 128, 256]:
         #songs
         for f in range(file_no):
             #structure segmentation
-            struct = segment(all_dirs[f], rs_size, approx[0], approx[1])
+            struct = segment(all_audio[f][0], all_audio[f][1],
+                            rs_size, approx[0], approx[1], False)
             all_struct.append(struct)
+
+            # #debug
+            # fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
+            # for i in range(approx[1]-approx[0]):
+            #     axs[i].matshow(struct[i])
+            # plt.savefig(all_names[f])
 
             #formatting
             flat_approximations = []
@@ -172,11 +232,11 @@ for rs_size in [64, 128, 256]:
             sys.stdout.flush()
         print('')
 
-        #plot approximations
-        fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
-        for i in range(approx[1]-approx[0]):
-            axs[i].matshow(all_struct[0][i])
-        plt.savefig('approximations'+str(rs_size))
+        # #plot approximations
+        # fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
+        # for i in range(approx[1]-approx[0]):
+        #     axs[i].matshow(all_struct[0][i])
+        # plt.savefig('approximations'+str(rs_size))
 
         #list to numpy array
         all_struct = np.asarray(all_struct)
@@ -222,8 +282,10 @@ for rs_size in [64, 128, 256]:
             hit_positions.append(hit)
         plt.figure()
         plt.plot(hit_positions)
-        plt.title('Position of hit - Average: ' + str(np.mean(hit_positions)))
+        hit_mean = np.mean(hit_positions)
+        plt.title('Position of hit - Average: ' + str(hit_mean))
         plt.savefig(fig_dir+key+'-hit_pos')
+        scores[key]=hit_mean
 
         print("Computed L1 distances.")
 
@@ -262,8 +324,10 @@ for rs_size in [64, 128, 256]:
             hit_positions.append(hit)
         plt.figure()
         plt.plot(hit_positions)
-        plt.title('Position of hit - Average: ' + str(np.mean(hit_positions)))
+        hit_mean = np.mean(hit_positions)
+        plt.title('Position of hit - Average: ' + str(hit_mean))
         plt.savefig(fig_dir+key+'-hit_pos')
+        scores[key]=hit_mean
 
         print("Computed Frobenius distances.")
 
@@ -273,7 +337,7 @@ for rs_size in [64, 128, 256]:
             for j in range(file_no):
                 costs = []
                 for k in range(approx[1]-approx[0]):           
-                    costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=True, metric='euclidean')[0][rs_size-1,rs_size-1])
+                    costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=False, metric='euclidean')[0][rs_size-1,rs_size-1])
                 dtw_cost[i][j] = sum(costs)/len(costs)
         key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-dtw'
         distances[key] = dtw_cost
@@ -305,8 +369,10 @@ for rs_size in [64, 128, 256]:
             hit_positions.append(hit)
         plt.figure()
         plt.plot(hit_positions)
-        plt.title('Position of hit - Average: ' + str(np.mean(hit_positions)))
+        hit_mean = np.mean(hit_positions)
+        plt.title('Position of hit - Average: ' + str(hit_mean))
         plt.savefig(fig_dir+key+'-hit_pos')
+        scores[key] = hit_mean
 
         print("Computed DTW cost.")
 
@@ -345,8 +411,10 @@ for rs_size in [64, 128, 256]:
             hit_positions.append(hit)
         plt.figure()
         plt.plot(hit_positions)
-        plt.title('Position of hit - Average: ' + str(np.mean(hit_positions)))
+        hit_mean = np.mean(hit_positions)
+        plt.title('Position of hit - Average: ' + str(hit_mean))
         plt.savefig(fig_dir+key+'-hit_pos')
+        scores[key] = hit_mean
 
         print("Computed directed Hausdorff distances.")
 
@@ -389,8 +457,20 @@ for rs_size in [64, 128, 256]:
             hit_positions.append(hit)
         plt.figure()
         plt.plot(hit_positions)
-        plt.title('Position of hit - Average: ' + str(np.mean(hit_positions)))
+        hit_mean = np.mean(hit_positions)
+        plt.title('Position of hit - Average: ' + str(hit_mean))
         plt.savefig(fig_dir+key+'-hit_pos')
+        scores[key] = hit_mean
 
         print("Computed minimum pairwise distance.")
 
+dill.dump_session('../../../dills/covers80_all.db')
+
+#Plotting scores
+plt.rcParams.update({'figure.autolayout': True})
+fig, ax = plt.subplots()
+xticks = list(scores.keys())
+all_scores = list(scores.values())
+ax.barh(xticks, all_scores)
+ax.set(xlabel='Score', ylabel='Construction')
+plt.savefig(fig_dir+'bar_plot.png')
