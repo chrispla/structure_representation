@@ -192,277 +192,286 @@ scores = {}
 
 #resampling parameters
 #for rs_size in [32]:
-#for rs_size in [16, 32, 64, 128]:
+for rs_size in [64, 128]:
     #approximations
-    #for approx in [[2,6], [2,10], [4,8], [4,12]]:
-    for approx in [[3,7], [7,11], [3,11]]:
+    #for approx in [[2,6]]:
+    for approx in [[3,7], [7,11], [4,10]]:
+        for filtering in [True, False]:
 
-        all_struct = [] #kmax-kmin sets each with a square matrix
-        all_flat = [] #kmax-kmin sets each with a flattened matrix
-        all_merged = [] #single concatenated vector with all flattened matrices
+            #string for keys to indicate filtering
+            if filtering:
+                filt = 'filt-'
+            else:
+                filt = ''
 
-        print("--------------------")
-        print("Resampling size:", str(rs_size))
-        print("Approximation range: [" + str(approx[0]) + ',' + str(approx[1]) + ']')
+            #hold all structures and their formats
+            all_struct = [] #kmax-kmin sets each with a square matrix
+            all_flat = [] #kmax-kmin sets each with a flattened matrix
+            all_merged = [] #single concatenated vector with all flattened matrices
 
-        #songs
-        for f in range(file_no):
-            #structure segmentation
-            struct = segment(all_audio[f][0], all_audio[f][1],
-                            rs_size, approx[0], approx[1], False)
-            all_struct.append(struct)
+            print("--------------------")
+            print("Resampling size:", str(rs_size))
+            print("Approximation range: [" + str(approx[0]) + ',' + str(approx[1]) + ']')
+            print("Filtering:", str(filtering))
 
-            # #debug
+            #songs
+            for f in range(file_no):
+                #structure segmentation
+                struct = segment(all_audio[f][0], all_audio[f][1],
+                                rs_size, approx[0], approx[1], filtering)
+                all_struct.append(struct)
+
+                # #debug
+                # fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
+                # for i in range(approx[1]-approx[0]):
+                #     axs[i].matshow(struct[i])
+                # plt.savefig(all_names[f])
+
+                #formatting
+                flat_approximations = []
+                merged_approximations = np.empty((0))
+                for j in range(approx[1]-approx[0]):
+                    flat_approximations.append(struct[j].flatten())
+                    merged_approximations = np.concatenate((merged_approximations, flat_approximations[j]))
+                all_flat.append(np.asarray(flat_approximations))
+                all_merged.append(merged_approximations)
+                
+                #progress
+                sys.stdout.write("\rSegmented %i/%s pieces." % ((f+1), str(file_no)))
+                sys.stdout.flush()
+            print('')
+
+            # #plot approximations
             # fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
             # for i in range(approx[1]-approx[0]):
-            #     axs[i].matshow(struct[i])
-            # plt.savefig(all_names[f])
+            #     axs[i].matshow(all_struct[0][i])
+            # plt.savefig('approximations'+str(rs_size))
 
-            #formatting
-            flat_approximations = []
-            merged_approximations = np.empty((0))
-            for j in range(approx[1]-approx[0]):
-                flat_approximations.append(struct[j].flatten())
-                merged_approximations = np.concatenate((merged_approximations, flat_approximations[j]))
-            all_flat.append(np.asarray(flat_approximations))
-            all_merged.append(merged_approximations)
+            #list to numpy array
+            all_struct = np.asarray(all_struct)
+            all_flat = np.asarray(all_flat)
+            all_merged = np.asarray(all_merged)
+
+            #figure directory
+            fig_dir = '../../../figures/covers80/'
+
+            #L1 norm
+            L1_distances = np.zeros((file_no, file_no))
+            for i in range(file_no):
+                for j in range(file_no):
+                    L1_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j], ord=1)
+
+            key = filt + str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1]-1)+'-L1'
+            distances[key] = L1_distances
             
-            #progress
-            sys.stdout.write("\rSegmented %i/%s pieces." % ((f+1), str(file_no)))
-            sys.stdout.flush()
-        print('')
+            L1_distances_covers = []
+            L1_distances_noncovers = []
+            for i in range(file_no):
+                for j in range(file_no):
+                    if covers[i][j]:
+                        if (L1_distances[i][j] != 0):
+                            L1_distances_covers.append(L1_distances[i][j])
+                    else:
+                        L1_distances_noncovers.append(L1_distances[i][j])
+            plt.figure()
+            plt.hist(L1_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
+            plt.hist(L1_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
+            plt.title("Histogram of L1 distances between cover and non-cover pairs")
+            plt.legend(loc='upper right')
+            plt.savefig(fig_dir+key+'-hist')
 
-        # #plot approximations
-        # fig, axs = plt.subplots(1, approx[1]-approx[0], figsize=(20, 20))
-        # for i in range(approx[1]-approx[0]):
-        #     axs[i].matshow(all_struct[0][i])
-        # plt.savefig('approximations'+str(rs_size))
+            hit_positions = []
+            for i in range(file_no):
+                for cover_idx in range(file_no):
+                    if covers[i][cover_idx] and i!=cover_idx:
+                        j = cover_idx
+                d = L1_distances[i]
+                d = np.argsort(d)
+                hit = np.where(d==j)[0][0]
+                hit_positions.append(hit)
+            plt.figure()
+            plt.plot(hit_positions)
+            hit_mean = np.mean(hit_positions)
+            plt.title('Position of hit - Average: ' + str(hit_mean))
+            plt.savefig(fig_dir+key+'-hit_pos')
+            scores[key]=hit_mean
 
-        #list to numpy array
-        all_struct = np.asarray(all_struct)
-        all_flat = np.asarray(all_flat)
-        all_merged = np.asarray(all_merged)
+            print("Computed L1 distances.")
 
-        #figure directory
-        fig_dir = '../../../figures/covers80/'
+            #Frobenius norm
+            fro_distances = np.zeros((file_no, file_no))
+            for i in range(file_no):
+                for j in range(file_no):
+                    fro_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j])
+            key = filt + str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1]-1)+'-fro'
+            distances[key] = fro_distances
 
-        #L1 norm
-        L1_distances = np.zeros((file_no, file_no))
-        for i in range(file_no):
-            for j in range(file_no):
-                L1_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j], ord=1)
+            fro_distances_covers = []
+            fro_distances_noncovers = []
+            for i in range(file_no):
+                for j in range(file_no):
+                    if covers[i][j]:
+                        if (fro_distances[i][j] != 0):
+                            fro_distances_covers.append(fro_distances[i][j])
+                    else:
+                        fro_distances_noncovers.append(fro_distances[i][j])         
+            plt.figure()
+            plt.hist(fro_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
+            plt.hist(fro_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
+            plt.title("Histogram of Frobenius distances between cover and non-cover pairs")
+            plt.legend(loc='upper right')
+            plt.savefig(fig_dir+key+'-hist')
 
-        key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-L1'
-        distances[key] = L1_distances
-        
-        L1_distances_covers = []
-        L1_distances_noncovers = []
-        for i in range(file_no):
-            for j in range(file_no):
-                if covers[i][j]:
-                    if (L1_distances[i][j] != 0):
-                        L1_distances_covers.append(L1_distances[i][j])
-                else:
-                    L1_distances_noncovers.append(L1_distances[i][j])
-        plt.figure()
-        plt.hist(L1_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
-        plt.hist(L1_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
-        plt.title("Histogram of L1 distances between cover and non-cover pairs")
-        plt.legend(loc='upper right')
-        plt.savefig(fig_dir+key+'-hist')
+            hit_positions = []
+            for i in range(file_no):
+                for cover_idx in range(file_no):
+                    if covers[i][cover_idx] and i!=cover_idx:
+                        j = cover_idx
+                d = fro_distances[i]
+                d = np.argsort(d)
+                hit = np.where(d==j)[0][0]
+                hit_positions.append(hit)
+            plt.figure()
+            plt.plot(hit_positions)
+            hit_mean = np.mean(hit_positions)
+            plt.title('Position of hit - Average: ' + str(hit_mean))
+            plt.savefig(fig_dir+key+'-hit_pos')
+            scores[key]=hit_mean
 
-        hit_positions = []
-        for i in range(file_no):
-            for cover_idx in range(file_no):
-                if covers[i][cover_idx] and i!=cover_idx:
-                    j = cover_idx
-            d = L1_distances[i]
-            d = np.argsort(d)
-            hit = np.where(d==j)[0][0]
-            hit_positions.append(hit)
-        plt.figure()
-        plt.plot(hit_positions)
-        hit_mean = np.mean(hit_positions)
-        plt.title('Position of hit - Average: ' + str(hit_mean))
-        plt.savefig(fig_dir+key+'-hit_pos')
-        scores[key]=hit_mean
+            print("Computed Frobenius distances.")
 
-        print("Computed L1 distances.")
+            #Sub-sequence Dynamic Time Warping cost
+            dtw_cost = np.zeros((file_no, file_no))
+            for i in range(file_no):
+                for j in range(file_no):
+                    costs = []
+                    for k in range(approx[1]-approx[0]):           
+                        costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=False, metric='euclidean')[0][rs_size-1,rs_size-1])
+                    dtw_cost[i][j] = sum(costs)/len(costs)
+            key = filt + str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1]-1)+'-dtw'
+            distances[key] = dtw_cost
 
-        #Frobenius norm
-        fro_distances = np.zeros((file_no, file_no))
-        for i in range(file_no):
-            for j in range(file_no):
-                fro_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j])
-        key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-fro'
-        distances[key] = fro_distances
+            dtw_cost_covers = []
+            dtw_cost_noncovers = []
+            for i in range(file_no):
+                for j in range(file_no):
+                    if covers[i][j]:
+                        if (dtw_cost[i][j] != 0):
+                            dtw_cost_covers.append(dtw_cost[i][j])
+                    else:
+                        dtw_cost_noncovers.append(dtw_cost[i][j]) 
+            plt.figure()
+            plt.hist(dtw_cost_covers, bins=100, alpha=0.5, label='Covers', density=1)
+            plt.hist(dtw_cost_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
+            plt.title("Histogram of subsequence DTW cost between cover and non-cover pairs")
+            plt.legend(loc='upper right')
+            plt.savefig(fig_dir+key+'-hist')
 
-        fro_distances_covers = []
-        fro_distances_noncovers = []
-        for i in range(file_no):
-            for j in range(file_no):
-                if covers[i][j]:
-                    if (fro_distances[i][j] != 0):
-                        fro_distances_covers.append(fro_distances[i][j])
-                else:
-                    fro_distances_noncovers.append(fro_distances[i][j])         
-        plt.figure()
-        plt.hist(fro_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
-        plt.hist(fro_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
-        plt.title("Histogram of Frobenius distances between cover and non-cover pairs")
-        plt.legend(loc='upper right')
-        plt.savefig(fig_dir+key+'-hist')
+            hit_positions = []
+            for i in range(file_no):
+                for cover_idx in range(file_no):
+                    if covers[i][cover_idx] and i!=cover_idx:
+                        j = cover_idx
+                d = dtw_cost[i]
+                d = np.argsort(d)
+                hit = np.where(d==j)[0][0]
+                hit_positions.append(hit)
+            plt.figure()
+            plt.plot(hit_positions)
+            hit_mean = np.mean(hit_positions)
+            plt.title('Position of hit - Average: ' + str(hit_mean))
+            plt.savefig(fig_dir+key+'-hit_pos')
+            scores[key] = hit_mean
 
-        hit_positions = []
-        for i in range(file_no):
-            for cover_idx in range(file_no):
-                if covers[i][cover_idx] and i!=cover_idx:
-                    j = cover_idx
-            d = fro_distances[i]
-            d = np.argsort(d)
-            hit = np.where(d==j)[0][0]
-            hit_positions.append(hit)
-        plt.figure()
-        plt.plot(hit_positions)
-        hit_mean = np.mean(hit_positions)
-        plt.title('Position of hit - Average: ' + str(hit_mean))
-        plt.savefig(fig_dir+key+'-hit_pos')
-        scores[key]=hit_mean
+            print("Computed DTW cost.")
 
-        print("Computed Frobenius distances.")
+            #Directed Hausdorff distance
+            hausdorff_distances = np.zeros((file_no, file_no))
+            for i in range(file_no):
+                for j in range(file_no):
+                    hausdorff_distances[i][j] = (directed_hausdorff(all_flat[i], all_flat[j]))[0]
+            key = filt + str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1]-1)+'-hau'
+            distances[key] = hausdorff_distances
 
-        #Sub-sequence Dynamic Time Warping cost
-        dtw_cost = np.zeros((file_no, file_no))
-        for i in range(file_no):
-            for j in range(file_no):
-                costs = []
-                for k in range(approx[1]-approx[0]):           
-                    costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=False, metric='euclidean')[0][rs_size-1,rs_size-1])
-                dtw_cost[i][j] = sum(costs)/len(costs)
-        key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-dtw'
-        distances[key] = dtw_cost
+            hausdorff_distances_covers = []
+            hausdorff_distances_noncovers = []
+            for i in range(file_no):
+                for j in range(file_no):
+                    if covers[i][j]:
+                        if (hausdorff_distances[i][j] != 0):
+                            hausdorff_distances_covers.append(hausdorff_distances[i][j])
+                    else:
+                        hausdorff_distances_noncovers.append(hausdorff_distances[i][j])             
+            plt.figure()
+            plt.hist(hausdorff_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
+            plt.hist(hausdorff_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
+            plt.title("Histogram of Hausdorff distances between cover and non-cover pairs")
+            plt.legend(loc='upper right')
+            plt.savefig(fig_dir+key+'-hist')
 
-        dtw_cost_covers = []
-        dtw_cost_noncovers = []
-        for i in range(file_no):
-            for j in range(file_no):
-                if covers[i][j]:
-                    if (dtw_cost[i][j] != 0):
-                        dtw_cost_covers.append(dtw_cost[i][j])
-                else:
-                    dtw_cost_noncovers.append(dtw_cost[i][j]) 
-        plt.figure()
-        plt.hist(dtw_cost_covers, bins=100, alpha=0.5, label='Covers', density=1)
-        plt.hist(dtw_cost_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
-        plt.title("Histogram of subsequence DTW cost between cover and non-cover pairs")
-        plt.legend(loc='upper right')
-        plt.savefig(fig_dir+key+'-hist')
+            hit_positions = []
+            for i in range(file_no):
+                for cover_idx in range(file_no):
+                    if covers[i][cover_idx] and i!=cover_idx:
+                        j = cover_idx
+                d = hausdorff_distances[i]
+                d = np.argsort(d)
+                hit = np.where(d==j)[0][0]
+                hit_positions.append(hit)
+            plt.figure()
+            plt.plot(hit_positions)
+            hit_mean = np.mean(hit_positions)
+            plt.title('Position of hit - Average: ' + str(hit_mean))
+            plt.savefig(fig_dir+key+'-hit_pos')
+            scores[key] = hit_mean
 
-        hit_positions = []
-        for i in range(file_no):
-            for cover_idx in range(file_no):
-                if covers[i][cover_idx] and i!=cover_idx:
-                    j = cover_idx
-            d = dtw_cost[i]
-            d = np.argsort(d)
-            hit = np.where(d==j)[0][0]
-            hit_positions.append(hit)
-        plt.figure()
-        plt.plot(hit_positions)
-        hit_mean = np.mean(hit_positions)
-        plt.title('Position of hit - Average: ' + str(hit_mean))
-        plt.savefig(fig_dir+key+'-hit_pos')
-        scores[key] = hit_mean
+            print("Computed directed Hausdorff distances.")
 
-        print("Computed DTW cost.")
+            #Minimum distance across all pairs
+            min_distances = np.zeros((file_no, file_no))
+            for i in range(file_no):
+                for j in range(file_no):
+                    dists = []
+                    for n in range(approx[1]-approx[0]):
+                        for m in range(approx[1]-approx[0]):
+                            dists.append(np.linalg.norm(all_struct[i][n]-all_struct[j][m]))
+                    min_distances[i][j] = min(dists)
+            key = filt + str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1]-1)+'-pair'
+            distances[key] = min_distances
 
-        #Directed Hausdorff distance
-        hausdorff_distances = np.zeros((file_no, file_no))
-        for i in range(file_no):
-            for j in range(file_no):
-                hausdorff_distances[i][j] = (directed_hausdorff(all_flat[i], all_flat[j]))[0]
-        key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-hau'
-        distances[key] = hausdorff_distances
+            min_distances_covers = []
+            min_distances_noncovers = []
+            for i in range(file_no):
+                for j in range(file_no):
+                    if covers[i][j]:
+                        if (min_distances[i][j] != 0):
+                            min_distances_covers.append(min_distances[i][j])
+                    else:
+                        min_distances_noncovers.append(min_distances[i][j])            
+            plt.figure()
+            plt.hist(min_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
+            plt.hist(min_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
+            plt.title("Histogram of min pair distances between cover and non-cover pairs")
+            plt.legend(loc='upper right')
+            plt.savefig(fig_dir+key+'-hist')
 
-        hausdorff_distances_covers = []
-        hausdorff_distances_noncovers = []
-        for i in range(file_no):
-            for j in range(file_no):
-                if covers[i][j]:
-                    if (hausdorff_distances[i][j] != 0):
-                        hausdorff_distances_covers.append(hausdorff_distances[i][j])
-                else:
-                    hausdorff_distances_noncovers.append(hausdorff_distances[i][j])             
-        plt.figure()
-        plt.hist(hausdorff_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
-        plt.hist(hausdorff_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
-        plt.title("Histogram of Hausdorff distances between cover and non-cover pairs")
-        plt.legend(loc='upper right')
-        plt.savefig(fig_dir+key+'-hist')
+            hit_positions = []
+            for i in range(file_no):
+                for cover_idx in range(file_no):
+                    if covers[i][cover_idx] and i!=cover_idx:
+                        j = cover_idx
+                d = min_distances[i]
+                d = np.argsort(d)
+                hit = np.where(d==j)[0][0]
+                hit_positions.append(hit)
+            plt.figure()
+            plt.plot(hit_positions)
+            hit_mean = np.mean(hit_positions)
+            plt.title('Position of hit - Average: ' + str(hit_mean))
+            plt.savefig(fig_dir+key+'-hit_pos')
+            scores[key] = hit_mean
 
-        hit_positions = []
-        for i in range(file_no):
-            for cover_idx in range(file_no):
-                if covers[i][cover_idx] and i!=cover_idx:
-                    j = cover_idx
-            d = hausdorff_distances[i]
-            d = np.argsort(d)
-            hit = np.where(d==j)[0][0]
-            hit_positions.append(hit)
-        plt.figure()
-        plt.plot(hit_positions)
-        hit_mean = np.mean(hit_positions)
-        plt.title('Position of hit - Average: ' + str(hit_mean))
-        plt.savefig(fig_dir+key+'-hit_pos')
-        scores[key] = hit_mean
-
-        print("Computed directed Hausdorff distances.")
-
-        #Minimum distance across all pairs
-        min_distances = np.zeros((file_no, file_no))
-        for i in range(file_no):
-            for j in range(file_no):
-                dists = []
-                for n in range(approx[1]-approx[0]):
-                    for m in range(approx[1]-approx[0]):
-                        dists.append(np.linalg.norm(all_struct[i][n]-all_struct[j][m]))
-                min_distances[i][j] = min(dists)
-        key = str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1])+'-pair'
-        distances[key] = min_distances
-
-        min_distances_covers = []
-        min_distances_noncovers = []
-        for i in range(file_no):
-            for j in range(file_no):
-                if covers[i][j]:
-                    if (min_distances[i][j] != 0):
-                        min_distances_covers.append(min_distances[i][j])
-                else:
-                    min_distances_noncovers.append(min_distances[i][j])            
-        plt.figure()
-        plt.hist(min_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
-        plt.hist(min_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
-        plt.title("Histogram of min pair distances between cover and non-cover pairs")
-        plt.legend(loc='upper right')
-        plt.savefig(fig_dir+key+'-hist')
-
-        hit_positions = []
-        for i in range(file_no):
-            for cover_idx in range(file_no):
-                if covers[i][cover_idx] and i!=cover_idx:
-                    j = cover_idx
-            d = min_distances[i]
-            d = np.argsort(d)
-            hit = np.where(d==j)[0][0]
-            hit_positions.append(hit)
-        plt.figure()
-        plt.plot(hit_positions)
-        hit_mean = np.mean(hit_positions)
-        plt.title('Position of hit - Average: ' + str(hit_mean))
-        plt.savefig(fig_dir+key+'-hit_pos')
-        scores[key] = hit_mean
-
-        print("Computed minimum pairwise distance.")
+            print("Computed minimum pairwise distance.")
 
 dill.dump_session('../../../dills/covers80_all.db')
 
