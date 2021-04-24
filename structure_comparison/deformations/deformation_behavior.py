@@ -9,19 +9,17 @@ def segment(filedir, rs_size, kmin, kmax, filter):
     #load audio
     y, sr = librosa.load(filedir, sr=16000, mono=True)
 
-        #compute cqt
+    #compute cqt
     C = librosa.amplitude_to_db(np.abs(librosa.cqt(y=y, sr=sr, 
                                         hop_length=512,
                                         bins_per_octave=12*3,
                                         n_bins=7*12*3)),
                                         ref=np.max)
 
-    #beat tracking
-    tempo, beats = librosa.beat.beat_track(y=y, sr=sr, trim=False)
-
-    #beat synch cqt
-    Csync = librosa.util.sync(C, beats, aggregate=np.median)
-
+    #beat synchronization would remove the silence in deformations that have added silence at the start
+    #therefore we need to downsample using a different method
+    Csync = cv2.resize(C, (int(C.shape[1]/10), C.shape[0]))
+ 
     #stack memory
     if filter:
         Csync = librosa.feature.stack_memory(Csync, 4)
@@ -38,8 +36,8 @@ def segment(filedir, rs_size, kmin, kmax, filter):
     #mfccs
     mfcc = librosa.feature.mfcc(y=y, sr=sr)
 
-    #beat sync mfccs
-    Msync = librosa.util.sync(mfcc, beats)
+    #downsample like CQT, compress time by 10
+    Msync = cv2.resize(C, (int(mfcc.shape[1]/10), mfcc.shape[0]))
 
     #weighted sequence
     path_distance = np.sum(np.diff(Msync, axis=1)**2, axis=0)
@@ -172,6 +170,8 @@ rs_size = 64 #resampling size for combined matrix
 tf_no = 12 #number of transformations per file
 
 #for original audio
+count = 0
+
 for f in range(file_no):
 
     #structure segmentation
@@ -187,7 +187,8 @@ for f in range(file_no):
     struct[all_names[f]]['OG'].append(np.asarray(flat_approximations))
     struct[all_names[f]]['OG'].append(merged_approximations)
     
-    count = 0
+    count+=1
+
     #traverse transformations
     for edit in ['T', 'S']: #for edit in Trim, Silence
         for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
@@ -211,7 +212,7 @@ for f in range(file_no):
                 count+=1
 
                 #progress
-                sys.stdout.write("\rSegmented %i/%s pieces and their transformations." % ((f*tf_no)+count, str(file_no*(tf_no+1))))
+                sys.stdout.write("\rSegmented %i/%s pieces." % ((f*tf_no)+count, str(file_no*(tf_no+1))))
                 sys.stdout.flush()
 
 print('')
@@ -247,12 +248,12 @@ for name in all_names:
         for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
             for position in ['S', 'E']: #for position in Start, End
                 tf = edit+duration+position
-                cost = []
+                costs = []
                 for k in range(kmax-kmin):
                     costs.append(librosa.sequence.dtw(struct[name]['OG'][0][k], #0->original structure format
                                                         struct[name][tf][0][k], 
                                                         subseq=True, 
-                                                        metric='euclidean')[0][rs_size,rs_size])
+                                                        metric='euclidean')[0][rs_size-1,rs_size-1])
                 dist['dtw'][name][tf] = sum(costs)/len(costs)
 print("Computed DTW cost.")
 
