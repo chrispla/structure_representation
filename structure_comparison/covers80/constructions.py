@@ -183,7 +183,7 @@ distances = {}
 #--Score dictionary--#
 """Terminology
 distances: L1, fro, dtw, hau, pair
-format: rs_size-approx[0]-approx[1]-distance e.g. 128-2-8-L1
+format: (filt-)rs_size-approx[0]-approx[1]-distance e.g. filt-128-2-8-L1
 """
 scores = {}
 
