@@ -195,7 +195,7 @@ scores = {}
 for rs_size in [64, 128]:
     #approximations
     #for approx in [[2,6]]:
-    for approx in [[3,7], [7,11], [4,10]]:
+    for approx in [[3,8], [8,12], [4,11]]:
         for filtering in [True, False]:
 
             #string for keys to indicate filtering

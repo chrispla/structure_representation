@@ -33,20 +33,20 @@ for f in range(file_no):
     filename = all_names[f]
     y, sr = librosa.load(filedir, sr=16000, mono=True)
     #trim start
-    sf.write(fileroot+'/T3S-'+filename+'.wav', y[3*16000:], sr, subtype='FLOAT')
-    sf.write(fileroot+'/T7S-'+filename+'.wav', y[7*16000:], sr, subtype='FLOAT')
+    sf.write(fileroot+'/T03S-'+filename+'.wav', y[3*16000:], sr, subtype='FLOAT')
+    sf.write(fileroot+'/T07S-'+filename+'.wav', y[7*16000:], sr, subtype='FLOAT')
     sf.write(fileroot+'/T15S-'+filename+'.wav', y[15*16000:], sr, subtype='FLOAT')
     #trim end
-    sf.write(fileroot+'/T3E-'+filename+'.wav', y[:len(y)-(3*16000)], sr, subtype='FLOAT')
-    sf.write(fileroot+'/T7E-'+filename+'.wav', y[:len(y)-(7*16000)], sr, subtype='FLOAT')
+    sf.write(fileroot+'/T03E-'+filename+'.wav', y[:len(y)-(3*16000)], sr, subtype='FLOAT')
+    sf.write(fileroot+'/T07E-'+filename+'.wav', y[:len(y)-(7*16000)], sr, subtype='FLOAT')
     sf.write(fileroot+'/T15E-'+filename+'.wav', y[:len(y)-(15*16000)], sr, subtype='FLOAT')
     #add silence to start
-    sf.write(fileroot+'/S3S-'+filename+'.wav', np.concatenate((np.zeros(3*16000), y)), sr, subtype='FLOAT')
-    sf.write(fileroot+'/S7S-'+filename+'.wav', np.concatenate((np.zeros(7*16000), y)), sr, subtype='FLOAT')
+    sf.write(fileroot+'/S03S-'+filename+'.wav', np.concatenate((np.zeros(3*16000), y)), sr, subtype='FLOAT')
+    sf.write(fileroot+'/S07S-'+filename+'.wav', np.concatenate((np.zeros(7*16000), y)), sr, subtype='FLOAT')
     sf.write(fileroot+'/S15S-'+filename+'.wav', np.concatenate((np.zeros(15*16000), y)), sr, subtype='FLOAT')
     #add silence to end
-    sf.write(fileroot+'/S3E-'+filename+'.wav', np.concatenate((y, np.zeros(3*16000))), sr, subtype='FLOAT')
-    sf.write(fileroot+'/S7E-'+filename+'.wav', np.concatenate((y, np.zeros(7*16000))), sr, subtype='FLOAT')
+    sf.write(fileroot+'/S03E-'+filename+'.wav', np.concatenate((y, np.zeros(3*16000))), sr, subtype='FLOAT')
+    sf.write(fileroot+'/S07E-'+filename+'.wav', np.concatenate((y, np.zeros(7*16000))), sr, subtype='FLOAT')
     sf.write(fileroot+'/S15E-'+filename+'.wav', np.concatenate((y, np.zeros(15*16000))), sr, subtype='FLOAT')
 
 

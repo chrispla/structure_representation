@@ -1,4 +1,4 @@
-def segment(filedir, rs_size, kmin, kmax):
+def segment(filedir, rs_size, kmin, kmax, filter):
     """structurally segments the selected audio
 
         ds_size: side length to which combined matrix is going to be resampled to
@@ -9,8 +9,9 @@ def segment(filedir, rs_size, kmin, kmax):
     #load audio
     y, sr = librosa.load(filedir, sr=16000, mono=True)
 
-    #compute cqt
-    C = librosa.amplitude_to_db(np.abs(librosa.cqt(y=y, sr=sr,
+        #compute cqt
+    C = librosa.amplitude_to_db(np.abs(librosa.cqt(y=y, sr=sr, 
+                                        hop_length=512,
                                         bins_per_octave=12*3,
                                         n_bins=7*12*3)),
                                         ref=np.max)
@@ -22,15 +23,17 @@ def segment(filedir, rs_size, kmin, kmax):
     Csync = librosa.util.sync(C, beats, aggregate=np.median)
 
     #stack memory
-    Cstack = librosa.feature.stack_memory(Csync, 4)
+    if filter:
+        Csync = librosa.feature.stack_memory(Csync, 4)
 
     #Affinity matrix
-    R = librosa.segment.recurrence_matrix(Cstack, width=3, mode='affinity', sym=True)
+    R = librosa.segment.recurrence_matrix(Csync, width=3, mode='affinity', sym=True)
 
     #Filtering
-    df = librosa.segment.timelag_filter(scipy.ndimage.median_filter)
-    Rf = df(R, size=(1, 7))
-    Rf = librosa.segment.path_enhance(Rf, 15)
+    if filter:  
+        df = librosa.segment.timelag_filter(scipy.ndimage.median_filter)
+        R = df(R, size=(1, 7))
+        R = librosa.segment.path_enhance(R, 15)
 
     #mfccs
     mfcc = librosa.feature.mfcc(y=y, sr=sr)
@@ -46,11 +49,11 @@ def segment(filedir, rs_size, kmin, kmax):
 
     #weighted combination of affinity matrix and mfcc diagonal
     deg_path = np.sum(R_path, axis=1)
-    deg_rec = np.sum(Rf, axis=1)
+    deg_rec = np.sum(R, axis=1)
 
     mu = deg_path.dot(deg_path + deg_rec) / np.sum((deg_path + deg_rec)**2)
 
-    A = mu * Rf + (1 - mu) * R_path
+    A = mu * R + (1 - mu) * R_path
 
     #resampling
     A_d = cv2.resize(A, (rs_size, rs_size))
@@ -65,12 +68,27 @@ def segment(filedir, rs_size, kmin, kmax):
 
     #normalization
     Cnorm = np.cumsum(evecs**2, axis=1)**0.5
+
+    #temporary replacement for bug
+    a_min_value = 3.6934424e-08
+    Cnorm[Cnorm == 0.0] = a_min_value
+    if (np.isnan(np.sum(Cnorm))):
+        print("WOOOOOAH")
+
+    #approximations
     dist_set = []
     for k in range(kmin, kmax):
+
         Xs = evecs[:, :k] / Cnorm[:, k-1:k]
+        
+        #debug
+        if np.isnan(np.sum(Xs)):
+            print('woops')
+
         distance = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(Xs, metric='euclidean'))
         dist_set.append(distance)
     dist_set = np.asarray(dist_set)
+    
     
     #return
     return(dist_set)
@@ -106,9 +124,11 @@ all_dirs = []
 all_names = []
 all_roots = []
 max_files = 4000
+
+#load directories of original, non-transformed songs
 for root, dirs, files in os.walk('/Users/chris/Google Drive/Classes/Capstone/Datasets/deformations/'):
         for name in files:
-            if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
+            if ('.mp3' in name):
                 filepath = os.path.join(root, name)
                 all_dirs.append(filepath)
                 all_names.append(name[:-4])
@@ -119,63 +139,96 @@ for root, dirs, files in os.walk('/Users/chris/Google Drive/Classes/Capstone/Dat
             break        
 file_no = len(all_dirs)
 
+#--Structure dictionary--#
+#format: struct[song name][transformation] = [struct, flat, merged]
+struct = {}
+for name in all_names:
+    struct[name] = {}
+    struct[name]['OG'] = [] #entry for original song's structure
+    for edit in ['T', 'S']: #for edit in Trim, Silence
+        for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
+            for position in ['S', 'E']: #for position in Start, End
+                struct[name][edit+duration+position]=[]
 
-#--same song (True) vs different song (False)--#
-covers = np.zeros((file_no, file_no), dtype=np.bool_)
-for i in range(file_no):
-    for j in range(file_no):
-        if (all_roots[i] == all_roots[j]):
-            covers[i][j] = True
-        else:
-            covers[i][j] = False
 
 #--Distance dictionary--#
-#L1, fro, hau, dtw, pair
-distances = {}
+#format: dist[metric][name][transform] = float
+#metrics: L1, fro, hau, dtw, pair
+dist = {}
+for metric in ['L1', 'fro', 'hau', 'dtw', 'pair']:
+    dist[metric] = {}
+    for name in all_names:
+        dist[metric][name] = {}
+        for edit in ['T', 'S']: #for edit in Trim, Silence
+            for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
+                for position in ['S', 'E']: #for position in Start, End
+                    dist[metric][name][edit+duration+position]=0
 
 
-#--traverse parameters, compute segmentations, save evaluation--#
+#segment songs
+kmin = 7
+kmax = 11
+rs_size = 64 #resampling size for combined matrix
+tf_no = 12 #number of transformations per file
 
-all_struct = [] #kmax-kmin sets each with a square matrix
-all_flat = [] #kmax-kmin sets each with a flattened matrix
-all_merged = [] #single concatenated vector with all flattened matrices
-
-
-#songs
+#for original audio
 for f in range(file_no):
+
     #structure segmentation
-    struct = segment(all_dirs[f], 128, 2, 8)
-    all_struct.append(struct)
+    approximations = segment(all_dirs[f], rs_size, kmin, kmax, True)
+    struct[all_names[f]]['OG'].append(approximations)
 
     #formatting
     flat_approximations = []
     merged_approximations = np.empty((0))
-    for j in range(6):
-        flat_approximations.append(struct[j].flatten())
+    for j in range(kmax-kmin):
+        flat_approximations.append(approximations[j].flatten())
         merged_approximations = np.concatenate((merged_approximations, flat_approximations[j]))
-    all_flat.append(np.asarray(flat_approximations))
-    all_merged.append(merged_approximations)
+    struct[all_names[f]]['OG'].append(np.asarray(flat_approximations))
+    struct[all_names[f]]['OG'].append(merged_approximations)
     
+    count = 0
+    #traverse transformations
+    for edit in ['T', 'S']: #for edit in Trim, Silence
+        for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
+            for position in ['S', 'E']: #for position in Start, End
+
+                tf = edit+duration+position #transformation string
+
+                #construct filedir of transformations from filedir of original, and segment
+                approximations = segment(all_roots[f] + '/'+ tf + '-' + all_names[f] + '.wav', rs_size, kmin, kmax, True)
+                struct[all_names[f]][tf].append(approximations)
+
+                #formatting
+                flat_approximations = []
+                merged_approximations = np.empty((0))
+                for j in range(kmax-kmin):
+                    flat_approximations.append(approximations[j].flatten())
+                    merged_approximations = np.concatenate((merged_approximations, flat_approximations[j]))
+                struct[all_names[f]][tf].append(np.asarray(flat_approximations))
+                struct[all_names[f]][tf].append(merged_approximations)
+
+                count+=1
+
     #progress
-    sys.stdout.write("\rSegmented %i/%s pieces." % ((f+1), str(file_no)))
+    sys.stdout.write("\rSegmented %i/%s pieces and their transformations." % ((f*tf_no)+count+1, str(file_no*tf_no)))
     sys.stdout.flush()
+
 print('')
 
-# #plot approximations
-# fig, axs = plt.subplots(1, 6, figsize=(20, 20))
-# for i in range(6):
-#     axs[i].matshow(all_struct[0][i])
-# plt.savefig('approximations')
-
-#list to numpy array
-all_struct = np.asarray(all_struct)
-all_flat = np.asarray(all_flat)
-all_merged = np.asarray(all_merged)
-
-print(np.sum(all_merged))
 
 #figure directory
 fig_dir = '/Users/chris/Google Drive/Classes/Capstone/figures/deformations/'
+
+
+
+
+
+exit()
+
+
+
+
 
 #L1 norm
 L1_distances = np.zeros((file_no, file_no))
@@ -205,7 +258,7 @@ dtw_cost = np.zeros((file_no, file_no))
 for i in range(file_no):
     for j in range(file_no):
         costs = []
-        for k in range(6):           
+        for k in range(kmax-kmin):           
             costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=True, metric='euclidean')[0][127,127])
         dtw_cost[i][j] = sum(costs)/len(costs)
 key = 'dtw'
@@ -230,8 +283,8 @@ min_distances = np.zeros((file_no, file_no))
 for i in range(file_no):
     for j in range(file_no):
         dists = []
-        for n in range(6):
-            for m in range(6):
+        for n in range(kmax-kmin):
+            for m in range(kmax-kmin):
                 dists.append(np.linalg.norm(all_struct[i][n]-all_struct[j][m]))
         min_distances[i][j] = min(dists)
 key = 'pair'
