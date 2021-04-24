@@ -210,9 +210,9 @@ for f in range(file_no):
 
                 count+=1
 
-    #progress
-    sys.stdout.write("\rSegmented %i/%s pieces and their transformations." % ((f*tf_no)+count+1, str(file_no*tf_no)))
-    sys.stdout.flush()
+                #progress
+                sys.stdout.write("\rSegmented %i/%s pieces and their transformations." % ((f*tf_no)+count, str(file_no*(tf_no+1))))
+                sys.stdout.flush()
 
 print('')
 
@@ -220,89 +220,65 @@ print('')
 #figure directory
 fig_dir = '/Users/chris/Google Drive/Classes/Capstone/figures/deformations/'
 
-
-
-
-
-exit()
-
-
-
-
-
 #L1 norm
-L1_distances = np.zeros((file_no, file_no))
-for i in range(file_no):
-    for j in range(file_no):
-        L1_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j], ord=1)
-
-key = 'L1'
-distances[key] = L1_distances
-
-
+for name in all_names:
+    #traverse transformations
+    for edit in ['T', 'S']: #for edit in Trim, Silence
+        for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
+            for position in ['S', 'E']: #for position in Start, End
+                tf = edit+duration+position
+                dist['L1'][name][tf] = np.linalg.norm(struct[name]['OG'][2]-struct[name][tf][2], ord=1) #2->merged
 print("Computed L1 distances.")
 
 #Frobenius norm
-fro_distances = np.zeros((file_no, file_no))
-for i in range(file_no):
-    for j in range(file_no):
-        fro_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j])
-key = 'fro'
-distances[key] = fro_distances
-       
-
+for name in all_names:
+    #traverse transformations
+    for edit in ['T', 'S']: #for edit in Trim, Silence
+        for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
+            for position in ['S', 'E']: #for position in Start, End
+                tf = edit+duration+position
+                dist['fro'][name][tf] = np.linalg.norm(struct[name]['OG'][2]-struct[name][tf][2])
 print("Computed Frobenius distances.")
 
 #Sub-sequence Dynamic Time Warping cost
-dtw_cost = np.zeros((file_no, file_no))
-for i in range(file_no):
-    for j in range(file_no):
-        costs = []
-        for k in range(kmax-kmin):           
-            costs.append(librosa.sequence.dtw(all_struct[i][k], all_struct[j][k], subseq=True, metric='euclidean')[0][127,127])
-        dtw_cost[i][j] = sum(costs)/len(costs)
-key = 'dtw'
-distances[key] = dtw_cost
-
-
+for name in all_names:
+    #traverse transformations
+    for edit in ['T', 'S']: #for edit in Trim, Silence
+        for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
+            for position in ['S', 'E']: #for position in Start, End
+                tf = edit+duration+position
+                cost = []
+                for k in range(kmax-kmin):
+                    costs.append(librosa.sequence.dtw(struct[name]['OG'][0][k], #0->original structure format
+                                                        struct[name][tf][0][k], 
+                                                        subseq=True, 
+                                                        metric='euclidean')[0][rs_size,rs_size])
+                dist['dtw'][name][tf] = sum(costs)/len(costs)
 print("Computed DTW cost.")
 
 #Directed Hausdorff distance
-hausdorff_distances = np.zeros((file_no, file_no))
-for i in range(file_no):
-    for j in range(file_no):
-        hausdorff_distances[i][j] = (directed_hausdorff(all_flat[i], all_flat[j]))[0]
-key = 'hau'
-distances[key] = hausdorff_distances
-
-
+for name in all_names:
+    #traverse transformations
+    for edit in ['T', 'S']: #for edit in Trim, Silence
+        for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
+            for position in ['S', 'E']: #for position in Start, End
+                tf = edit+duration+position
+                dist['hau'][name][tf] = (directed_hausdorff(struct[name]['OG'][1], struct[name][tf][1]))[0] #1->flat
 print("Computed directed Hausdorff distances.")
 
 #Minimum distance across all pairs
-min_distances = np.zeros((file_no, file_no))
-for i in range(file_no):
-    for j in range(file_no):
-        dists = []
-        for n in range(kmax-kmin):
-            for m in range(kmax-kmin):
-                dists.append(np.linalg.norm(all_struct[i][n]-all_struct[j][m]))
-        min_distances[i][j] = min(dists)
-key = 'pair'
-distances[key] = min_distances
-
+for name in all_names:
+    #traverse transformations
+    for edit in ['T', 'S']: #for edit in Trim, Silence
+        for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
+            for position in ['S', 'E']: #for position in Start, End
+                tf = edit+duration+position
+                dists = []
+                for n in range(kmax-kmin):
+                    for m in range(kmax-kmin):
+                        dists.append(np.linalg.norm(struct[name]['OG'][0][n]-struct[name][tf][0][m])) #0->original structure format
+                dist['pair'][name][tf] = min(dists)
 print("Computed minimum pairwise distance.")
 
 
-for f in range(0, file_no, 13):
-    for metric in ['L1', 'fro', 'hau', 'pair', 'dtw']:
-        D = np.zeros((13,13))
-        for x in range(13):
-            for y in range(13):
-                D[x][y] = distances[metric][f+x][f+y]
-        plt.figure()
-        plt.matshow(D)
-        plt.title(metric+'-'+all_names[f])
-        plt.savefig(fig_dir+metric)
-
-
-        
+dill.dump_session('../../../dills/deformations_all.db')
