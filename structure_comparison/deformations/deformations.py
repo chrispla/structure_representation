@@ -31,7 +31,14 @@ for f in range(file_no):
     filedir = all_dirs[f]
     fileroot = all_roots[f]
     filename = all_names[f]
+
+    #load file
     y, sr = librosa.load(filedir, sr=16000, mono=True)
+
+    #----------------------------#
+    #---Simple transformations---#
+    #----------------------------#
+
     #trim start
     sf.write(fileroot+'/T03S-'+filename+'.wav', y[3*16000:], sr, subtype='FLOAT')
     sf.write(fileroot+'/T07S-'+filename+'.wav', y[7*16000:], sr, subtype='FLOAT')
@@ -49,4 +56,21 @@ for f in range(file_no):
     sf.write(fileroot+'/S07E-'+filename+'.wav', np.concatenate((y, np.zeros(7*16000))), sr, subtype='FLOAT')
     sf.write(fileroot+'/S15E-'+filename+'.wav', np.concatenate((y, np.zeros(15*16000))), sr, subtype='FLOAT')
 
+    #-----------------------------------#
+    #---Structure-aware tranformations--#
+    #-----------------------------------#
+
+    #---laplacian approximations and spectral clustering---#
+
+    
+
+
+
+    #remove largest structural segment
+
+
+    #duplicate largest structural segment in place
+
+
+    #swap two largest structural segments
 
