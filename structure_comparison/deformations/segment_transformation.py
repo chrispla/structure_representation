@@ -3,6 +3,15 @@ import scipy
 import numpy as np
 import cv2
 import sklearn
+#--supress warnings--#
+import warnings
+warnings.filterwarnings("ignore")
+
+# #For plotting segmentation boundaries
+# import matplotlib as mpl
+# mpl.use('Agg')
+# from matplotlib import pyplot as plt
+
 
 def segment(filedir, rs_size, kmin, kmax, filter):
     """compute laplacian approximations
@@ -187,14 +196,17 @@ def segment_cluster(filedir, rs_size, kmin, kmax, filter):
         seg_ids = KM.fit_predict(Xs)
         seg_ids_set.append(seg_ids)
     seg_ids_set = np.asarray(seg_ids_set)
-    print(seg_ids_set)
+
+    # #Plot segments
+    # plt.figure()
+    # plt.matshow(seg_ids_set, aspect=10)
+    # plt.savefig('./seg.png')
 
     #compute boundary frames for each level
     boundary_frames = []
     for k in range(kmax-kmin):
         #add starting frame
         boundary_frames.append([0])
-        print(seg_ids_set.shape)
         for i in range(seg_ids_set.shape[1]-1):
             if seg_ids_set[k][i] != seg_ids_set[k][i+1]:
                 #these are representative of all the downsampling performed, so we need to scale back to original
@@ -204,4 +216,8 @@ def segment_cluster(filedir, rs_size, kmin, kmax, filter):
         boundary_frames[k].append(y_len)
 
     #return
+    # print(librosa.core.frames_to_time(boundary_frames[0] , sr=16000, hop_length=1))
     return(boundary_frames)
+
+fdir = '/home/chris/Documents/datasets/test/steve_miller_band+Steve_Miller_Band_Live_+09-Abracadabra.mp3'
+segment_cluster(fdir, 128, 3, 4, False)

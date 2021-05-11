@@ -7,13 +7,16 @@ import sys
 import glob
 import os
 import soundfile as sf
-from hierarchical_structure.structure_comparison.deformations.segment_transformation import segment_cluster
+from segment_transformation import segment_cluster
+#--supress warnings--#
+import warnings
+warnings.filterwarnings("ignore")
 
 all_dirs = []
 all_names = []
 all_roots = []
 max_files = 4000
-for root, dirs, files in os.walk('/Users/chris/Google Drive/Classes/Capstone/Datasets/deformations'):
+for root, dirs, files in os.walk('/home/chris/Documents/datasets/test2/'):
         for name in files:
             if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
                 filepath = os.path.join(root, name)
@@ -68,10 +71,10 @@ for f in range(file_no):
     large2 = [0, 0] #start and end frame of second largest segment
     for i in range(len(boundary_frames)-1):
         #check for largest
-        if (boundary_frames[i+1]-boundary_frames[i] >= (large1[1]-large1[0])):
+        if ((boundary_frames[i+1]-boundary_frames[i]) >= (large1[1]-large1[0])):
             #move largest to second largest
             large2[0] = large1[0]
-            large2[1] = large2[1]
+            large2[1] = large1[1]
             #set new as largest
             large1[0] = boundary_frames[i]
             large1[1] = boundary_frames[i+1]
@@ -79,7 +82,7 @@ for f in range(file_no):
             #set new as second largest
             large2[0] = boundary_frames[i]
             large2[1] = boundary_frames[i+1]
-       
+
     #---remove largest structural segment---#
     #concatenate part before start and after end of largest (or second largest) segment
     sf.write(fileroot+'/REM1-'+filename+'.wav', np.concatenate((y[:large1[0]], y[large1[1]:])), sr, subtype='FLOAT')
@@ -95,7 +98,7 @@ for f in range(file_no):
     #if largest segment is before second largest
     if large1[0] < large2[0]:
         sf.write(fileroot+'/SWAP-'+filename+'.wav', np.concatenate((y[:large1[0]], #up to start of large1
-                                                                    y[large2[1]:large2[1]], #large2
+                                                                    y[large2[0]:large2[1]], #large2
                                                                     y[large1[1]:large2[0]], #between large1 and large2 
                                                                     y[large1[0]:large1[1]], #large 1
                                                                     y[large2[1]:])), #after large2
@@ -103,9 +106,12 @@ for f in range(file_no):
     #if largest segment is after second largest
     else:
         sf.write(fileroot+'/SWAP-'+filename+'.wav', np.concatenate((y[:large2[0]], #up to start of large2
-                                                                y[large1[1]:large1[1]], #large1
+                                                                y[large1[0]:large1[1]], #large1
                                                                 y[large2[1]:large1[0]], #between large2 and large1
                                                                 y[large2[0]:large2[1]], #large 2
                                                                 y[large1[1]:])), #after large1
                                                                 sr, subtype='FLOAT')
 
+    #progress
+    sys.stdout.write("\rComputed transformations of %i/%s pieces." % ((f+1), str(file_no)))
+    sys.stdout.flush()
