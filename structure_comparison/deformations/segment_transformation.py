@@ -103,7 +103,7 @@ def segment_cluster(filedir, rs_size, kmin, kmax, filter):
     rs_size: side length to which combined matrix is going to be resampled to
     [kmin, kmax]: min and maximum approximation ranks
 
-    returns set of low rank approximations"""
+    returns list of boundary frames at every specified level of approximation"""
 
     #load audio
     y, sr = librosa.load(filedir, sr=16000, mono=True)
