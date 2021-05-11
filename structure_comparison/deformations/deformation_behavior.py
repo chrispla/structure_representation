@@ -17,7 +17,8 @@ import sys
 import glob
 import os
 import random
-import segment_transformation
+from hierarchical_structure.structure_comparison.deformations.segment_transformation import segment
+
 
 #--supress warnings--#
 import warnings

@@ -195,10 +195,10 @@ def segment_cluster(filedir, rs_size, kmin, kmax, filter):
         #add starting frame
         boundary_frames.append([0])
         print(seg_ids_set.shape)
-        for i in range(1,seg_ids_set.shape[1]):
-            if seg_ids_set[k][i-1] != seg_ids_set[k][i]:
+        for i in range(seg_ids_set.shape[1]-1):
+            if seg_ids_set[k][i] != seg_ids_set[k][i+1]:
                 #these are representative of all the downsampling performed, so we need to scale back to original
-                frame = int(i*y_len/seg_ids_set.shape[1])
+                frame = int((i+0.5)*y_len/seg_ids_set.shape[1])
                 boundary_frames[k].append(frame) 
         #add ending frame
         boundary_frames[k].append(y_len)

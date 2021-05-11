@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import sys
 import glob
 import os
-import random
 import soundfile as sf
 
 all_dirs = []
