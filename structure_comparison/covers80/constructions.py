@@ -192,10 +192,10 @@ scores = {}
 
 #resampling parameters
 #for rs_size in [32]:
-for rs_size in [64, 128]:
+for rs_size in [32, 64, 128, 256]:
     #approximations
     #for approx in [[2,6]]:
-    for approx in [[3,8], [8,12], [4,11]]:
+    for approx in [[3,8], [8,12], [4,11]]: #min number of approximations is 3
         for filtering in [True, False]:
 
             #string for keys to indicate filtering
@@ -204,17 +204,25 @@ for rs_size in [64, 128]:
             else:
                 filt = ''
 
-            #hold all structures and their formats
-            all_struct = [] #kmax-kmin sets each with a square matrix
-            all_flat = [] #kmax-kmin sets each with a flattened matrix
-            all_merged = [] #single concatenated vector with all flattened matrices
-
             print("--------------------")
             print("Resampling size:", str(rs_size))
             print("Approximation range: [" + str(approx[0]) + ',' + str(approx[1]) + ']')
             print("Filtering:", str(filtering))
 
-            #songs
+
+
+            #----------------#
+            #---Formatting---#
+            #----------------#
+
+            #hold all structures and their formats
+            all_struct = [] #kmax-kmin sets each with a square matrix
+            all_flat = [] #kmax-kmin sets each with a flattened matrix
+            all_merged = [] #single concatenated vector with all flattened matrices
+            all_shingled2 = [] #shingle adjacent pairs of flat approoximations
+            all_shingled3 = [] #shingle adjacent triplets of flat approoximations
+
+            #traverse songs
             for f in range(file_no):
                 #structure segmentation
                 struct = segment(all_audio[f][0], all_audio[f][1],
@@ -235,7 +243,19 @@ for rs_size in [64, 128]:
                     merged_approximations = np.concatenate((merged_approximations, flat_approximations[j]))
                 all_flat.append(np.asarray(flat_approximations))
                 all_merged.append(merged_approximations)
-                
+
+                #shingling per 2
+                shingled = []
+                for j in range(approx[1]-approx[0]-1):
+                    shingled.append(np.concatenate((all_flat[f][j],all_flat[f][j+1]), axis=0))
+                all_shingled2.append(np.asarray(shingled))
+
+                #shingling per 3
+                shingled = []
+                for j in range(approx[1]-approx[0]-2):
+                    shingled.append(np.concatenate((all_flat[f][j],all_flat[f][j+1]),all_flat[f][j+2], axis=0))
+                all_shingled3.append(np.asarray(shingled))
+
                 #progress
                 sys.stdout.write("\rSegmented %i/%s pieces." % ((f+1), str(file_no)))
                 sys.stdout.flush()
@@ -251,6 +271,14 @@ for rs_size in [64, 128]:
             all_struct = np.asarray(all_struct)
             all_flat = np.asarray(all_flat)
             all_merged = np.asarray(all_merged)
+            all_shingled2 = np.asarray(all_shingled2)
+            all_shingled3 = np.asarray(all_shingled3)
+
+
+
+            #---------------#
+            #---Distances---#
+            #---------------#
 
             #figure directory
             fig_dir = '../../../figures/covers80/'
