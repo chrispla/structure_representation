@@ -119,12 +119,16 @@ from scipy.linalg import eigh
 from scipy.ndimage import median_filter
 import cv2
 from sklearn import metrics
-import matplotlib.pyplot as plt
 import dill
 import sys
 import glob
 import os
 import random
+
+#change matplotlib backend to save rendered plots correctly on linux 
+import matplotlib as mpl
+mpl.use('Agg')
+from matplotlib import pyplot as plt
 
 #--supress warnings--#
 import warnings
@@ -200,12 +204,13 @@ scores = {}
 #---traverse parameters, segment, evaluate---#
 #--------------------------------------------#
 
-#resampling parameters
-for rs_size in [32]:
-#for rs_size in [32, 64, 128, 256]:
-    #approximations
-    #for approx in [[2,6]]:
-    for approx in [[3,8], [8,12], [4,11]]: #min number of approximations is 3
+#figure directory
+fig_dir = '/home/chris/Documents/figures/'
+
+#for rs_size in [32]: #test config
+for rs_size in [32, 64, 128, 256]: #resampling parameters
+    #for approx in [[2,6]]: #test config
+    for approx in [[2,6], [2,8], [4,10], [8,12]]: #min number of approximations is 3
         for filtering in [True, False]:
 
             #string for keys to indicate filtering
@@ -260,13 +265,15 @@ for rs_size in [32]:
                 #shingling per 2
                 shingled = []
                 for j in range(approx[1]-approx[0]-1):
-                    shingled.append(np.array([all_flat[f][j],all_flat[f][j+1]]))
+                    #shingled.append(np.array([all_flat[f][j],all_flat[f][j+1]]))
+                    shingled.append(np.concatenate((all_flat[f][j],all_flat[f][j+1]), axis=None))
                 all_shingled2.append(np.asarray(shingled))
 
                 #shingling per 3
                 shingled = []
                 for j in range(approx[1]-approx[0]-2):
-                    shingled.append(np.array([all_flat[f][j],all_flat[f][j+1],all_flat[f][j+2]]))
+                    #shingled.append(np.array([all_flat[f][j],all_flat[f][j+1],all_flat[f][j+2]]))
+                    shingled.append(np.concatenate((all_flat[f][j],all_flat[f][j+1],all_flat[f][j+2]), axis=None))
                 all_shingled3.append(np.asarray(shingled))
 
                 #progress
@@ -293,10 +300,6 @@ for rs_size in [32]:
             #-----Distances-----#
             #-------------------#
             #-------------------#
-
-            #figure directory
-            fig_dir = '../../../figures/covers80/'
-
 
             #---------#
             #-L1 norm-#
@@ -579,7 +582,7 @@ for rs_size in [32]:
             plt.savefig(fig_dir+key+'-hit_pos')
             scores[key] = hit_mean
 
-            print("Computed directed Hausdorff distances.")
+            print("Computed directed Hausdorff distances f bigrams.")
 
 
             #-------------------------------------#
@@ -590,7 +593,7 @@ for rs_size in [32]:
             for i in range(file_no):
                 for j in range(file_no):
                     shingled3_distances[i][j] = (directed_hausdorff(all_flat[i], all_flat[j]))[0]
-            key = filt + str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1]-1)+'-hau'
+            key = filt + str(rs_size)+'-'+str(approx[0])+'-'+str(approx[1]-1)+'-sh3'
             distances[key] = shingled3_distances
 
             shingled3_distances_covers = []
@@ -605,7 +608,7 @@ for rs_size in [32]:
             plt.figure()
             plt.hist(shingled3_distances_covers, bins=100, alpha=0.5, label='Covers', density=1)
             plt.hist(shingled3_distances_noncovers, bins=100, alpha=0.5, label='Non-covers', density=1)
-            plt.title("Histogram of Hausdorff distances between cover and non-cover pairs")
+            plt.title("Histogram of Hausdorff distances between cover and non-cover pairs of shingled triples")
             plt.legend(loc='upper right')
             plt.savefig(fig_dir+key+'-hist')
 
@@ -625,15 +628,6 @@ for rs_size in [32]:
             plt.savefig(fig_dir+key+'-hit_pos')
             scores[key] = hit_mean
 
-            print("Computed directed Hausdorff distances of shingled triples.")
+            print("Computed directed Hausdorff distances of trigrams.")
 
-dill.dump_session('../../../dills/covers80_all.db')
-
-#Plotting scores
-plt.rcParams.update({'figure.autolayout': True})
-fig, ax = plt.subplots()
-xticks = list(scores.keys())
-all_scores = list(scores.values())
-ax.barh(xticks, all_scores)
-ax.set(xlabel='Score', ylabel='Construction')
-plt.savefig(fig_dir+'bar_plot.png')
+dill.dump_session('/home/chris/Documents/dills/5covers80_all.db')
