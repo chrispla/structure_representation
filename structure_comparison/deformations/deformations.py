@@ -16,7 +16,9 @@ all_dirs = []
 all_names = []
 all_roots = []
 max_files = 4000
-for root, dirs, files in os.walk('/home/chris/Documents/datasets/test2/'):
+
+directory = '/home/ismir/Documents/ISMIR/Datasets/covers80-perturbations/'
+for root, dirs, files in os.walk(directory):
         for name in files:
             if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
                 filepath = os.path.join(root, name)
@@ -64,7 +66,7 @@ for f in range(file_no):
     #---------------------------------------#
 
     #get frames of laplacian segmentation boundaries
-    boundary_frames = segment_cluster(filedir, 128, 3, 4, True)[0]
+    boundary_frames = segment_cluster(filedir, 128, 6, 7, True)[0]
 
     #find largest and second largest segment
     large1 = [0, 0] #stant and end frame of largest segment

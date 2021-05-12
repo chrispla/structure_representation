@@ -142,8 +142,8 @@ all_dirs = []
 all_names = []
 all_roots = []
 all_audio = []
-max_files = 5
-for root, dirs, files in os.walk('/home/chris/Documents/datasets/covers80/covers32k/'):
+max_files = 40000
+for root, dirs, files in os.walk('/home/ismir/Documents/ISMIR/Datasets/covers80/'):
         for name in files:
             if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
                 filepath = os.path.join(root, name)
@@ -205,7 +205,7 @@ scores = {}
 #--------------------------------------------#
 
 #figure directory
-fig_dir = '/home/chris/Documents/figures/'
+fig_dir = '/home/ismir/Documents/ISMIR/figures/covers80_run2/'
 
 #for rs_size in [32]: #test config
 for rs_size in [32, 64, 128, 256]: #resampling parameters
@@ -630,4 +630,4 @@ for rs_size in [32, 64, 128, 256]: #resampling parameters
 
             print("Computed directed Hausdorff distances of trigrams.")
 
-dill.dump_session('/home/chris/Documents/dills/5covers80_all.db')
+dill.dump_session('/home/ismir/Documents/ISMIR/dills/all_covers80_run2.db')

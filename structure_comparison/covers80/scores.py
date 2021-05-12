@@ -9,7 +9,7 @@ import os
 import random
 import csv
 
-dill.load_session('/home/chris/Documents/dills/5covers80_all.db')
+dill.load_session('/home/ismir/Documents/ISMIR/dills/all_covers80_run2.db')
 
 """Terminology
 distances = {}
@@ -17,7 +17,7 @@ distances: L1, fro, dtw, hau, pair, sh2, sh3
 format: (filt-)rs_size-approx[0]-approx[1]-distance e.g. filt-128-2-8-L1
 """
 
-with open('/home/chris/Documents/figures/distances.csv', mode='w') as f:
+with open('/home/ismir/Documents/ISMIR/figures/covers80_run2/distances.csv', mode='w') as f:
     writer = csv.writer(f)
     for metric in ['L1', 'fro', 'dtw', 'hau', 'pair', 'sh2', 'sh3']:
         for filtering in ['filt-', '']:

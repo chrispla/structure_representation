@@ -218,6 +218,3 @@ def segment_cluster(filedir, rs_size, kmin, kmax, filter):
     #return
     # print(librosa.core.frames_to_time(boundary_frames[0] , sr=16000, hop_length=1))
     return(boundary_frames)
-
-fdir = '/home/chris/Documents/datasets/test/steve_miller_band+Steve_Miller_Band_Live_+09-Abracadabra.mp3'
-segment_cluster(fdir, 128, 3, 4, False)
