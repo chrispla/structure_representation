@@ -13,7 +13,7 @@ dill.load_session('/home/ismir/Documents/ISMIR/dills/deformations_run2/deformati
 #list of all possible transformations
 tfs =  ['T03S', 'T07S', 'T15S', 'T03E', 'T07E', 'T15E',
                 'S03S', 'S07S', 'S15S', 'S03E', 'S07E', 'S15E',
-                'SWAP', 'REM1', 'REM2', 'DUP1', 'DUP2']:
+                'SWAP', 'REM1', 'REM2', 'DUP1', 'DUP2']
 
 rows = [['']] #0,0 position empty
 for tf in tfs: 

@@ -280,6 +280,7 @@ for rs_size in [128]:
                     L1_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j], ord=1)
 
             rows.append(['L1', np.mean(L1_distances), np.amax(L1_distances)])
+            print("Computed L1 distances.")
 
             #Frobenius norm
             fro_distances = np.zeros((file_no, file_no))
@@ -288,6 +289,7 @@ for rs_size in [128]:
                     fro_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j])
 
             rows.append(['Frobenius', np.mean(fro_distances), np.amax(fro_distances)])
+            print("Computed Frobenius distsances.")
 
             #Sub-sequence Dynamic Time Warping cost
             dtw_cost = np.zeros((file_no, file_no))
@@ -299,6 +301,7 @@ for rs_size in [128]:
                     dtw_cost[i][j] = sum(costs)/len(costs)
 
             rows.append(['DTW', np.mean(dtw_cost), np.amax(dtw_cost)])
+            print("Computed DTW costs.")
             
             #Directed Hausdorff distance
             hausdorff_distances = np.zeros((file_no, file_no))
@@ -307,7 +310,8 @@ for rs_size in [128]:
                     hausdorff_distances[i][j] = (directed_hausdorff(all_flat[i], all_flat[j]))[0]
 
             rows.append(['Hausdorff', np.mean(hausdorff_distances), np.amax(hausdorff_distances)])
-            
+            print("Computed directed Hausdorff distances.")
+
             #Minimum distance across all pairs
             min_distances = np.zeros((file_no, file_no))
             for i in range(file_no):
@@ -319,6 +323,7 @@ for rs_size in [128]:
                     min_distances[i][j] = min(dists)
             
             rows.append(['Pair', np.mean(min_distances), np.amax(min_distances)])
+            print("Computed minimum paiwise distances.")
 
             #Directed Hausdorff distance of shingled pairs
             shingled2_distances = np.zeros((file_no, file_no))
@@ -327,6 +332,7 @@ for rs_size in [128]:
                     shingled2_distances[i][j] = (directed_hausdorff(all_shingled2[i], all_shingled2[j]))[0]
 
             rows.append(['Shingled 2', np.mean(shingled2_distances), np.amax(shingled2_distances)])
+            print("Copmuter directed Hausforff distances for bi-grams")
 
             #Directed Hausdorff distance of shingled triples
             shingled3_distances = np.zeros((file_no, file_no))
@@ -335,6 +341,7 @@ for rs_size in [128]:
                     shingled3_distances[i][j] = (directed_hausdorff(all_shingled3[i], all_shingled3[j]))[0]
 
             rows.append(['Shingled 3', np.mean(shingled3_distances), np.amax(shingled3_distances)])
+            print("Computed directed Hausforff distances for tri-grams.")
 
 with open('/home/ismir/Documents/ISMIR/figures/deformations_run2/mean_max.csv', mode='w') as f:
     writer = csv.writer(f)
