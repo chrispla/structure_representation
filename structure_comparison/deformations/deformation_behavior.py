@@ -86,7 +86,7 @@ for f in range(file_no):
     #segment original
 
     #structure segmentation
-    approximations = segment(all_dirs[f], rs_size, kmin, kmax, True)
+    approximations = segment(all_dirs[f], rs_size, kmin, kmax, True) #filtering true
     struct[all_names[f]]['OG'].append(approximations)
 
     #formatting

@@ -8,18 +8,17 @@ import glob
 import os
 import csv
 
-dill.load_session('../../../dills/deformations_all.db')
+dill.load_session('/home/ismir/Documents/ISMIR/dills/deformations_run2/deformations.db')
 
-tfs = [] #list of all possible transformations
-for edit in ['T', 'S']: #for edit in Trim, Silence
-    for position in ['S', 'E']: #for position in Start, End
-        for duration in ['03', '07', '15']: #for duration in 3sec, 7sec, 15sec
-                tfs.append(edit+duration+position)
+#list of all possible transformations
+tfs =  ['T03S', 'T07S', 'T15S', 'T03E', 'T07E', 'T15E',
+                'S03S', 'S07S', 'S15S', 'S03E', 'S07E', 'S15E',
+                'SWAP', 'REM1', 'REM2', 'DUP1', 'DUP2']:
 
 rows = [['']] #0,0 position empty
 for tf in tfs: 
     rows[0].append(tf)
-for metric in ['L1', 'fro', 'dtw', 'hau', 'pair']:
+for metric in ['L1', 'fro', 'dtw', 'hau', 'pair', 'sh2', 'sh3']:
     row = [metric]
     for tf in tfs:
         distance = 0
@@ -29,7 +28,7 @@ for metric in ['L1', 'fro', 'dtw', 'hau', 'pair']:
         row.append(distance)
     rows.append(row)
 
-with open('/Users/chris/Google Drive/Classes/Capstone/figures/deformations/distances.csv', mode='w') as f:
+with open('/home/ismir/Documents/ISMIR/figures/deformations_run2/perturbations.csv', mode='w') as f:
     writer = csv.writer(f)
     writer.writerows(rows)
 

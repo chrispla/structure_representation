@@ -1,3 +1,8 @@
+'''
+    Compute average distances for each metric on covers80
+'''
+
+
 def segment(y, s, rs_size, kmin, kmax, filter):
     """structurally segments the selected audio
 
@@ -122,7 +127,6 @@ import sys
 import glob
 import os
 import random
-from varname import nameof
 import csv
 
 #--supress warnings--#
@@ -137,7 +141,7 @@ all_names = []
 all_roots = []
 all_audio = []
 max_files = 40000
-for root, dirs, files in os.walk('/Users/chris/Google Drive/Classes/Capstone/Datasets/covers80/covers32k'):
+for root, dirs, files in os.walk('/home/ismir/Documents/ISMIR/Datasets/covers80/'):
         for name in files:
             if (('.wav' in name) or ('.aif' in name) or ('.mp3' in name)):
                 filepath = os.path.join(root, name)
@@ -174,14 +178,14 @@ for i in range(file_no):
 
 #--Distance dictionary--#
 """Terminology
-distances: L1, fro, dtw, hau, pair
+distances: L1, fro, dtw, hau, pair, sh2, sh3
 format: rs_size-approx[0]-approx[1]-distance e.g. 128-2-8-L1
 """
 distances = {}
 
 #--Score dictionary--#
 """Terminology
-distances: L1, fro, dtw, hau, pair
+distances: L1, fro, dtw, hau, pair, sh2, sh3
 format: (filt-)rs_size-approx[0]-approx[1]-distance e.g. filt-128-2-8-L1
 """
 scores = {}
@@ -194,7 +198,7 @@ scores = {}
 for rs_size in [128]:
     #approximations
     #for approx in [[2,6]]:
-    for approx in [[7,11]]:
+    for approx in [[2,11]]:
         for filtering in [True]:
 
             #string for keys to indicate filtering
@@ -207,6 +211,8 @@ for rs_size in [128]:
             all_struct = [] #kmax-kmin sets each with a square matrix
             all_flat = [] #kmax-kmin sets each with a flattened matrix
             all_merged = [] #single concatenated vector with all flattened matrices
+            all_shingled2 = [] #shingled pairs of flat approximations
+            all_shingled3 = [] #shingled triples of flat approximations
 
             print("--------------------")
             print("Resampling size:", str(rs_size))
@@ -234,6 +240,20 @@ for rs_size in [128]:
                     merged_approximations = np.concatenate((merged_approximations, flat_approximations[j]))
                 all_flat.append(np.asarray(flat_approximations))
                 all_merged.append(merged_approximations)
+
+                #shingling per 2
+                shingled = []
+                for j in range(approx[1]-approx[0]-1):
+                    shingled.append(np.concatenate((all_flat[f][j],all_flat[f][j+1]),axis=None))
+                    #shingled.append(np.concatenate((struct[all_names[f]]['OG'][1][j],struct[all_names[f]]['OG'][1][j+1]),axis=None))
+                all_shingled2.append(np.asarray(shingled))
+
+                #shingling per 3
+                shingled = []
+                for j in range(approx[1]-approx[0]-2):
+                    shingled.append(np.concatenate((all_flat[f][j],all_flat[f][j+1],all_flat[f][j+2]),axis=None))
+                    #shingled.append(np.concatenate((struct[all_names[f]]['OG'][1][j],struct[all_names[f]]['OG'][1][j+1],struct[all_names[f]]['OG'][1][j+2]), axis=None))
+                all_shingled3.append(np.asarray(shingled))
                 
                 #progress
                 sys.stdout.write("\rSegmented %i/%s pieces." % ((f+1), str(file_no)))
@@ -300,7 +320,23 @@ for rs_size in [128]:
             
             rows.append(['Pair', np.mean(min_distances), np.amax(min_distances)])
 
-with open('/Users/chris/Google Drive/Classes/Capstone/figures/covers80_stats/stats.csv', mode='w') as f:
+            #Directed Hausdorff distance of shingled pairs
+            shingled2_distances = np.zeros((file_no, file_no))
+            for i in range(file_no):
+                for j in range(file_no):
+                    shingled2_distances[i][j] = (directed_hausdorff(all_shingled2[i], all_shingled2[j]))[0]
+
+            rows.append(['Shingled 2', np.mean(shingled2_distances), np.amax(shingled2_distances)])
+
+            #Directed Hausdorff distance of shingled triples
+            shingled3_distances = np.zeros((file_no, file_no))
+            for i in range(file_no):
+                for j in range(file_no):
+                    shingled3_distances[i][j] = (directed_hausdorff(all_shingled3[i], all_shingled3[j]))[0]
+
+            rows.append(['Shingled 3', np.mean(shingled3_distances), np.amax(shingled3_distances)])
+
+with open('/home/ismir/Documents/ISMIR/figures/deformations_run2/mean_max.csv', mode='w') as f:
     writer = csv.writer(f)
     writer.writerows(rows)
 print('Stats computed.')
