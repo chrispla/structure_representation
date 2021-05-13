@@ -238,4 +238,4 @@ for name in all_names:
 print("Computed directed Hausdorff distances for tri-grams.")
 
 
-dill.dump_session('/home/ismir/Documents/ISMIR/dills/deformations_run2/')
+dill.dump_session('/home/ismir/Documents/ISMIR/dills/deformations_run2/deformations.db')
