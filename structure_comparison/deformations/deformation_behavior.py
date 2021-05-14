@@ -30,7 +30,7 @@ warnings.filterwarnings("ignore")
 all_dirs = []
 all_names = []
 all_roots = []
-max_files = 4000
+max_files = 4000000
 
 #load directories of original, non-transformed songs
 for root, dirs, files in os.walk('/home/ismir/Documents/ISMIR/Datasets/covers80-perturbations/'):
@@ -79,7 +79,6 @@ rs_size = 128 #resampling size for combined matrix
 tf_no = 17 #number of transformations per file
 
 #for original audio
-count = 0
 
 for f in range(file_no):
 
@@ -116,8 +115,6 @@ for f in range(file_no):
                                         struct[all_names[f]]['OG'][1][j+2]), 
                                         axis=None))
     struct[all_names[f]]['OG'].append(np.asarray(shingled))
-    
-    count+=1
 
     #segments transformations
     for tf in ['T03S', 'T07S', 'T15S', 'T03E', 'T07E', 'T15E',
@@ -157,7 +154,7 @@ for f in range(file_no):
         struct[all_names[f]][tf].append(np.asarray(shingled))
 
     #progress
-    sys.stdout.write("\rSegmented %i/%s pieces." % ((f*tf_no)+count, str(file_no*(tf_no+1))))
+    sys.stdout.write("\rSegmented %i/%s pieces and their transformations." % (f+1, str(file_no)))
     sys.stdout.flush()
 
 print('')
@@ -234,7 +231,7 @@ for name in all_names:
     for tf in ['T03S', 'T07S', 'T15S', 'T03E', 'T07E', 'T15E',
                 'S03S', 'S07S', 'S15S', 'S03E', 'S07E', 'S15E',
                 'SWAP', 'REM1', 'REM2', 'DUP1', 'DUP2']:
-        dist['sh2'][name][tf] = (directed_hausdorff(struct[name]['OG'][4], struct[name][tf][4]))[0] #3->shingled3
+        dist['sh3'][name][tf] = (directed_hausdorff(struct[name]['OG'][4], struct[name][tf][4]))[0] #4->shingled3
 print("Computed directed Hausdorff distances for tri-grams.")
 
 
