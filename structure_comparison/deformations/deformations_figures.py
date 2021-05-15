@@ -28,7 +28,7 @@ for metric in ['L1', 'fro', 'dtw', 'hau', 'pair', 'sh2', 'sh3']:
         row.append(distance)
     rows.append(row)
 
-with open('/home/ismir/Documents/ISMIR/figures/deformations_run2/perturbations.csv', mode='w') as f:
+with open('/home/ismir/Documents/ISMIR/figures/deformations_run2/perturbations_160.csv', mode='w') as f:
     writer = csv.writer(f)
     writer.writerows(rows)
 

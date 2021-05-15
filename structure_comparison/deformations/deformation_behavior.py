@@ -30,7 +30,7 @@ warnings.filterwarnings("ignore")
 all_dirs = []
 all_names = []
 all_roots = []
-max_files = 4000000
+max_files = 40000
 
 #load directories of original, non-transformed songs
 for root, dirs, files in os.walk('/home/ismir/Documents/ISMIR/Datasets/covers80-perturbations/'):
