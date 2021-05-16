@@ -50,7 +50,7 @@ P_count = 0
 #---Loading limits---#
 min_covers = 10 #load works for which there are at least min_covers performances
 max_covers = 10 #stop loading performances if over max_covers per work
-max_works = 100
+max_works = 10
 
 #---Storage---#
 all_sets = []
@@ -131,16 +131,12 @@ for W in benchmark_metadata.keys():
             break
             
 all_sets = np.asarray(all_sets)
-file_no = len(all_WP)
+file_no = all_sets.shape[0]
 # all_shapeDNAs = np.asarray(all_shapeDNAs)
 
 print("\nLoaded Da-TACOS SMMs.")
 print("Data shape:", all_sets.shape)
 
-fig, axs = plt.subplots(1, kmax-kmin, figsize=(20, 20))
-for i in range(kmax-kmin):
-    axs[i].matshow(all_sets[8][i])
-plt.savefig('/home/ismir/Documents/ISMIR/figures/datacos/approx.png')
 
 #------------#
 #-Formatting-#
@@ -240,7 +236,7 @@ for i in range(file_no):
     d = np.argsort(d)
     hits = []
     for c in range(len(cvrs)): #traverse covers
-        hits.append(np.where(d==c)[0][0])
+        hits.append(np.where(d==cvrs[c])[0][0])
     hit_positions.append(min(hits))
 L1_average_hit = np.mean(hit_positions)
 print('L1 mean position of first hit:', L1_average_hit)
@@ -249,7 +245,7 @@ print('L1 mean position of first hit:', L1_average_hit)
 for i in range(file_no):
     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
     d = 1-(L1_distances[i]/np.linalg.norm(L1_distances[i])) 
-    c = covers[1] #get all cover relationships to selected song
+    c = covers[i] #get all cover relationships to selected song
     mAP = 0
     for j in range(file_no):
         mAP += average_precision_score(c, d)
@@ -291,7 +287,7 @@ for i in range(file_no):
     d = np.argsort(d)
     hits = []
     for c in range(len(cvrs)): #traverse covers
-        hits.append(np.where(d==c)[0][0])
+        hits.append(np.where(d==cvrs[c])[0][0])
     hit_positions.append(min(hits))
 fro_average_hit = np.mean(hit_positions)
 print('fro mean position of first hit:', fro_average_hit)
@@ -300,7 +296,7 @@ print('fro mean position of first hit:', fro_average_hit)
 for i in range(file_no):
     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
     d = 1-(fro_distances[i]/np.linalg.norm(fro_distances[i])) 
-    c = covers[1] #get all cover relationships to selected song
+    c = covers[i] #get all cover relationships to selected song
     mAP = 0
     for j in range(file_no):
         mAP += average_precision_score(c, d)
@@ -345,7 +341,7 @@ for i in range(file_no):
     d = np.argsort(d)
     hits = []
     for c in range(len(cvrs)): #traverse covers
-        hits.append(np.where(d==c)[0][0])
+        hits.append(np.where(d==cvrs[c])[0][0])
     hit_positions.append(min(hits))
 dtw_average_hit = np.mean(hit_positions)
 print('dtw mean position of first hit:', dtw_average_hit)
@@ -354,7 +350,7 @@ print('dtw mean position of first hit:', dtw_average_hit)
 for i in range(file_no):
     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
     d = 1-(dtw_cost[i]/np.linalg.norm(dtw_cost[i])) 
-    c = covers[1] #get all cover relationships to selected song
+    c = covers[i] #get all cover relationships to selected song
     mAP = 0
     for j in range(file_no):
         mAP += average_precision_score(c, d)
@@ -396,7 +392,7 @@ for i in range(file_no):
     d = np.argsort(d)
     hits = []
     for c in range(len(cvrs)): #traverse covers
-        hits.append(np.where(d==c)[0][0])
+        hits.append(np.where(d==cvrs[c])[0][0])
     hit_positions.append(min(hits))
 hau_average_hit = np.mean(hit_positions)
 print('hau mean position of first hit:', hau_average_hit)
@@ -405,7 +401,7 @@ print('hau mean position of first hit:', hau_average_hit)
 for i in range(file_no):
     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
     d = 1-(hausdorff_distances[i]/np.linalg.norm(hausdorff_distances[i])) 
-    c = covers[1] #get all cover relationships to selected song
+    c = covers[i] #get all cover relationships to selected song
     mAP = 0
     for j in range(file_no):
         mAP += average_precision_score(c, d)
@@ -451,7 +447,7 @@ for i in range(file_no):
     d = np.argsort(d)
     hits = []
     for c in range(len(cvrs)): #traverse covers
-        hits.append(np.where(d==c)[0][0])
+        hits.append(np.where(d==cvrs[c])[0][0])
     hit_positions.append(min(hits))
 pair_average_hit = np.mean(hit_positions)
 print('pair mean position of first hit:', pair_average_hit)
@@ -460,7 +456,7 @@ print('pair mean position of first hit:', pair_average_hit)
 for i in range(file_no):
     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
     d = 1-(min_distances[i]/np.linalg.norm(min_distances[i])) 
-    c = covers[1] #get all cover relationships to selected song
+    c = covers[i] #get all cover relationships to selected song
     mAP = 0
     for j in range(file_no):
         mAP += average_precision_score(c, d)
@@ -502,7 +498,7 @@ for i in range(file_no):
     d = np.argsort(d)
     hits = []
     for c in range(len(cvrs)): #traverse covers
-        hits.append(np.where(d==c)[0][0])
+        hits.append(np.where(d==cvrs[c])[0][0])
     hit_positions.append(min(hits))
 sh2_average_hit = np.mean(hit_positions)
 print('sh2 mean position of first hit:', sh2_average_hit)
@@ -511,7 +507,7 @@ print('sh2 mean position of first hit:', sh2_average_hit)
 for i in range(file_no):
     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
     d = 1-(shingled2_distances[i]/np.linalg.norm(shingled2_distances[i])) 
-    c = covers[1] #get all cover relationships to selected song
+    c = covers[i] #get all cover relationships to selected song
     mAP = 0
     for j in range(file_no):
         mAP += average_precision_score(c, d)
@@ -553,7 +549,7 @@ for i in range(file_no):
     d = np.argsort(d)
     hits = []
     for c in range(len(cvrs)): #traverse covers
-        hits.append(np.where(d==c)[0][0])
+        hits.append(np.where(d==cvrs[c])[0][0])
     hit_positions.append(min(hits))
 sh3_average_hit = np.mean(hit_positions)
 print('sh3 mean position of first hit:', sh3_average_hit)
@@ -562,7 +558,7 @@ print('sh3 mean position of first hit:', sh3_average_hit)
 for i in range(file_no):
     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
     d = 1-(shingled3_distances[i]/np.linalg.norm(shingled3_distances[i])) 
-    c = covers[1] #get all cover relationships to selected song
+    c = covers[i] #get all cover relationships to selected song
     mAP = 0
     for j in range(file_no):
         mAP += average_precision_score(c, d)
