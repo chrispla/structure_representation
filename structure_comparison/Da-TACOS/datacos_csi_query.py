@@ -50,7 +50,7 @@ P_count = 0
 #---Loading limits---#
 min_covers = 5 #load works for which there are at least min_covers performances
 max_covers = 5 #stop loading performances if over max_covers per work
-max_works = 500
+max_works = 15
 
 #---Storage---#
 all_sets = []
@@ -257,11 +257,11 @@ for i in range(max_works):
 print('L1 mean average precision:', mAP)
 
 
-# #---Frobenius norm---#
-# fro_distances = np.zeros((file_no, file_no))
-# for i in range(file_no):
-#     for j in range(file_no):
-#         fro_distances[i][j] = np.linalg.norm(all_merged[i]-all_merged[j])
+#---Frobenius norm---#
+fro_distances = np.zeros((max_works, max_works*max_covers))
+for i in range(max_works):
+    for j in range(max_covers*max_works):
+        fro_distances[i][j] = np.linalg.norm(all_merged[i*max_covers]-all_merged[j])
 
 # #Histogram
 # fro_distances_covers = []
@@ -280,43 +280,47 @@ print('L1 mean average precision:', mAP)
 # plt.legend(loc='upper right')
 # plt.savefig(fig_dir+'Histogram-fronorm.png')
 
-# #Mean position of first hit
-# hit_positions = []
-# for i in range(file_no):
-#     cvrs = [] #list of cover indeces for that work
-#     for cover_idx in range(file_no):
-#         if covers[i][cover_idx] and i!=cover_idx: #if cover and not the same work
-#             cvrs.append(cover_idx)
-#     d = fro_distances[i]
-#     d = np.argsort(d)
-#     hits = []
-#     for c in range(len(cvrs)): #traverse covers
-#         hits.append(np.where(d==c)[0][0])
-#     hit_positions.append(min(hits))
-# fro_average_hit = np.mean(hit_positions)
-# print('fro mean position of first hit:', fro_average_hit)
+#Mean position of first hit
+all_cvrs = []
+hit_positions = []
+for i in range(max_works):
+    d = fro_distances[i]
+    d = np.argsort(d)
+    hits = []
+    cvrs = []
+    for j in range(max_covers-1):
+        cvrs.append((i*max_covers)+j+1)
+    for c in range(len(cvrs)): #traverse covers
+        hits.append(np.where(d==cvrs[c])[0][0])
+    hit_positions.append(min(hits))
+    cvrs.insert(0,cvrs[0]-1)
+    all_cvrs.append(cvrs)
+fro_average_hit = np.mean(hit_positions)
+print('fro mean position of first hit:', fro_average_hit)
 
-# #Mean Average Precision
-# for i in range(file_no):
-#     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
-#     d = 1-(fro_distances[i]/np.linalg.norm(fro_distances[i])) 
-#     c = covers[1] #get all cover relationships to selected song
-#     mAP = 0
-#     for j in range(file_no):
-#         mAP += average_precision_score(c, d)
-#     mAP = mAP/float(file_no)
-# print('fro mean average precision:', mAP)
+#Mean Average Precision
+for i in range(max_works):
+    #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
+    d = 1-(fro_distances[i]/np.linalg.norm(fro_distances[i])) 
+    cr = np.zeros((max_works*max_covers)) #get all cover relationships to selected song
+    for c in all_cvrs[i]:
+        cr[c] = 1
+    mAP = 0
+    for j in range(max_works):
+        mAP += average_precision_score(cr, d)
+    mAP = mAP/float(max_works)
+print('fro mean average precision:', mAP)
 
 
-# #---Sub-sequence Dynamic Time Warping Cost---#
+#---Sub-sequence Dynamic Time Warping Cost---#
 
-# dtw_cost = np.zeros((file_no, file_no))
-# for i in range(file_no):
-#     for j in range(file_no):
-#         costs = []
-#         for k in range(kmax-kmin):           
-#             costs.append(librosa.sequence.dtw(all_sets[i][k], all_sets[j][k], subseq=False, metric='euclidean')[0][rs_size-1,rs_size-1])
-#         dtw_cost[i][j] = sum(costs)/len(costs)
+dtw_cost = np.zeros((max_works, max_works*max_covers))
+for i in range(max_works):
+    for j in range(max_covers*max_works):
+        costs = []
+        for k in range(kmax-kmin):           
+            costs.append(librosa.sequence.dtw(all_sets[i*max_covers][k], all_sets[j][k], subseq=False, metric='euclidean')[0][rs_size-1,rs_size-1])
+        dtw_cost[i][j] = sum(costs)/len(costs)
 
 # dtw_cost_covers = []
 # dtw_cost_noncovers = []
@@ -334,40 +338,44 @@ print('L1 mean average precision:', mAP)
 # plt.legend(loc='upper right')
 # plt.savefig(fig_dir+'Histogram-dtw.png')
 
-# #Mean position of first hit
-# hit_positions = []
-# for i in range(file_no):
-#     cvrs = [] #list of cover indeces for that work
-#     for cover_idx in range(file_no):
-#         if covers[i][cover_idx] and i!=cover_idx: #if cover and not the same work
-#             cvrs.append(cover_idx)
-#     d = dtw_cost[i]
-#     d = np.argsort(d)
-#     hits = []
-#     for c in range(len(cvrs)): #traverse covers
-#         hits.append(np.where(d==c)[0][0])
-#     hit_positions.append(min(hits))
-# dtw_average_hit = np.mean(hit_positions)
-# print('dtw mean position of first hit:', dtw_average_hit)
+#Mean position of first hit
+all_cvrs = []
+hit_positions = []
+for i in range(max_works):
+    d = dtw_cost[i]
+    d = np.argsort(d)
+    hits = []
+    cvrs = []
+    for j in range(max_covers-1):
+        cvrs.append((i*max_covers)+j+1)
+    for c in range(len(cvrs)): #traverse covers
+        hits.append(np.where(d==cvrs[c])[0][0])
+    hit_positions.append(min(hits))
+    cvrs.insert(0,cvrs[0]-1)
+    all_cvrs.append(cvrs)
+dtw_average_hit = np.mean(hit_positions)
+print('dtw mean position of first hit:', dtw_average_hit)
 
-# #Mean Average Precision
-# for i in range(file_no):
-#     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
-#     d = 1-(dtw_cost[i]/np.linalg.norm(dtw_cost[i])) 
-#     c = covers[1] #get all cover relationships to selected song
-#     mAP = 0
-#     for j in range(file_no):
-#         mAP += average_precision_score(c, d)
-#     mAP = mAP/float(file_no)
-# print('dtw mean average precision:', mAP)
+#Mean Average Precision
+for i in range(max_works):
+    #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
+    d = 1-(dtw_cost[i]/np.linalg.norm(dtw_cost[i])) 
+    cr = np.zeros((max_works*max_covers)) #get all cover relationships to selected song
+    for c in all_cvrs[i]:
+        cr[c] = 1
+    mAP = 0
+    for j in range(max_works):
+        mAP += average_precision_score(cr, d)
+    mAP = mAP/float(max_works)
+print('dtw mean average precision:', mAP)
 
 
-# #---Directed Hausdorff distance---#
+#---Directed Hausdorff distance---#
 
-# hausdorff_distances = np.zeros((file_no, file_no))
-# for i in range(file_no):
-#     for j in range(file_no):
-#         hausdorff_distances[i][j] = (directed_hausdorff(all_flat[i], all_flat[j]))[0]
+hausdorff_distances = np.zeros((max_works, max_works*max_covers))
+for i in range(max_works):
+    for j in range(max_covers*max_works):
+        hausdorff_distances[i][j] = (directed_hausdorff(all_flat[i*max_covers], all_flat[j]))[0]
 
 # hausdorff_distances_covers = []
 # hausdorff_distances_noncovers = []
@@ -385,44 +393,48 @@ print('L1 mean average precision:', mAP)
 # plt.legend(loc='upper right')
 # plt.savefig(fig_dir+'Histogram-hau.png')
 
-# #Mean position of first hit
-# hit_positions = []
-# for i in range(file_no):
-#     cvrs = [] #list of cover indeces for that work
-#     for cover_idx in range(file_no):
-#         if covers[i][cover_idx] and i!=cover_idx: #if cover and not the same work
-#             cvrs.append(cover_idx)
-#     d = hausdorff_distances[i]
-#     d = np.argsort(d)
-#     hits = []
-#     for c in range(len(cvrs)): #traverse covers
-#         hits.append(np.where(d==c)[0][0])
-#     hit_positions.append(min(hits))
-# hau_average_hit = np.mean(hit_positions)
-# print('hau mean position of first hit:', hau_average_hit)
+#Mean position of first hit
+all_cvrs = []
+hit_positions = []
+for i in range(max_works):
+    d = hausdorff_distances[i]
+    d = np.argsort(d)
+    hits = []
+    cvrs = []
+    for j in range(max_covers-1):
+        cvrs.append((i*max_covers)+j+1)
+    for c in range(len(cvrs)): #traverse covers
+        hits.append(np.where(d==cvrs[c])[0][0])
+    hit_positions.append(min(hits))
+    cvrs.insert(0,cvrs[0]-1)
+    all_cvrs.append(cvrs)
+hau_average_hit = np.mean(hit_positions)
+print('hau mean position of first hit:', hau_average_hit)
 
-# #Mean Average Precision
-# for i in range(file_no):
-#     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
-#     d = 1-(hausdorff_distances[i]/np.linalg.norm(hausdorff_distances[i])) 
-#     c = covers[1] #get all cover relationships to selected song
-#     mAP = 0
-#     for j in range(file_no):
-#         mAP += average_precision_score(c, d)
-#     mAP = mAP/float(file_no)
-# print('hau mean average precision:', mAP)
+#Mean Average Precision
+for i in range(max_works):
+    #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
+    d = 1-(hausdorff_distances[i]/np.linalg.norm(hausdorff_distances[i])) 
+    cr = np.zeros((max_works*max_covers)) #get all cover relationships to selected song
+    for c in all_cvrs[i]:
+        cr[c] = 1
+    mAP = 0
+    for j in range(max_works):
+        mAP += average_precision_score(cr, d)
+    mAP = mAP/float(max_works)
+print('hau mean average precision:', mAP)
 
 
-# #---Minimum distance across all pairs---#
+#---Minimum distance across all pairs---#
 
-# min_distances = np.zeros((file_no, file_no))
-# for i in range(file_no):
-#     for j in range(file_no):
-#         dists = []
-#         for n in range(kmax-kmin):
-#             for m in range(kmax-kmin):
-#                 dists.append(np.linalg.norm(all_sets[i][n]-all_sets[j][m]))
-#         min_distances[i][j] = min(dists)
+min_distances = np.zeros((max_works, max_works*max_covers))
+for i in range(max_works):
+    for j in range(max_covers*max_works):
+        dists = []
+        for n in range(kmax-kmin):
+            for m in range(kmax-kmin):
+                dists.append(np.linalg.norm(all_sets[i*max_covers][n]-all_sets[j][m]))
+        min_distances[i][j] = min(dists)
 
 # min_distances_covers = []
 # min_distances_noncovers = []
@@ -440,40 +452,44 @@ print('L1 mean average precision:', mAP)
 # plt.legend(loc='upper right')
 # plt.savefig(fig_dir+'Histogram-pair.png')
 
-# #Mean position of first hit
-# hit_positions = []
-# for i in range(file_no):
-#     cvrs = [] #list of cover indeces for that work
-#     for cover_idx in range(file_no):
-#         if covers[i][cover_idx] and i!=cover_idx: #if cover and not the same work
-#             cvrs.append(cover_idx)
-#     d = min_distances[i]
-#     d = np.argsort(d)
-#     hits = []
-#     for c in range(len(cvrs)): #traverse covers
-#         hits.append(np.where(d==c)[0][0])
-#     hit_positions.append(min(hits))
-# pair_average_hit = np.mean(hit_positions)
-# print('pair mean position of first hit:', pair_average_hit)
+#Mean position of first hit
+all_cvrs = []
+hit_positions = []
+for i in range(max_works):
+    d = min_distances[i]
+    d = np.argsort(d)
+    hits = []
+    cvrs = []
+    for j in range(max_covers-1):
+        cvrs.append((i*max_covers)+j+1)
+    for c in range(len(cvrs)): #traverse covers
+        hits.append(np.where(d==cvrs[c])[0][0])
+    hit_positions.append(min(hits))
+    cvrs.insert(0,cvrs[0]-1)
+    all_cvrs.append(cvrs)
+pair_average_hit = np.mean(hit_positions)
+print('pair mean position of first hit:', pair_average_hit)
 
-# #Mean Average Precision
-# for i in range(file_no):
-#     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
-#     d = 1-(min_distances[i]/np.linalg.norm(min_distances[i])) 
-#     c = covers[1] #get all cover relationships to selected song
-#     mAP = 0
-#     for j in range(file_no):
-#         mAP += average_precision_score(c, d)
-#     mAP = mAP/float(file_no)
-# print('pair mean average precision:', mAP)
+#Mean Average Precision
+for i in range(max_works):
+    #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
+    d = 1-(min_distances[i]/np.linalg.norm(min_distances[i])) 
+    cr = np.zeros((max_works*max_covers)) #get all cover relationships to selected song
+    for c in all_cvrs[i]:
+        cr[c] = 1
+    mAP = 0
+    for j in range(max_works):
+        mAP += average_precision_score(cr, d)
+    mAP = mAP/float(max_works)
+print('pair mean average precision:', mAP)
 
 
-# #---Directed Hausdorff distance shingled tuples---#
+#---Directed Hausdorff distance shingled tuples---#
 
-# shingled2_distances = np.zeros((file_no, file_no))
-# for i in range(file_no):
-#     for j in range(file_no):
-#         shingled2_distances[i][j] = (directed_hausdorff(all_shingled2[i], all_shingled2[j]))[0]
+shingled2_distances = np.zeros((max_works, max_works*max_covers))
+for i in range(max_works):
+    for j in range(max_covers*max_works):
+        shingled2_distances[i][j] = (directed_hausdorff(all_shingled2[i*max_covers], all_shingled2[j]))[0]
 
 # shingled2_distances_covers = []
 # shingled2_distances_noncovers = []
@@ -491,40 +507,44 @@ print('L1 mean average precision:', mAP)
 # plt.legend(loc='upper right')
 # plt.savefig(fig_dir+'Histogram-sh2.png')
 
-# #Mean position of first hit
-# hit_positions = []
-# for i in range(file_no):
-#     cvrs = [] #list of cover indeces for that work
-#     for cover_idx in range(file_no):
-#         if covers[i][cover_idx] and i!=cover_idx: #if cover and not the same work
-#             cvrs.append(cover_idx)
-#     d = shingled2_distances[i]
-#     d = np.argsort(d)
-#     hits = []
-#     for c in range(len(cvrs)): #traverse covers
-#         hits.append(np.where(d==c)[0][0])
-#     hit_positions.append(min(hits))
-# sh2_average_hit = np.mean(hit_positions)
-# print('sh2 mean position of first hit:', sh2_average_hit)
+#Mean position of first hit
+all_cvrs = []
+hit_positions = []
+for i in range(max_works):
+    d = shingled2_distances[i]
+    d = np.argsort(d)
+    hits = []
+    cvrs = []
+    for j in range(max_covers-1):
+        cvrs.append((i*max_covers)+j+1)
+    for c in range(len(cvrs)): #traverse covers
+        hits.append(np.where(d==cvrs[c])[0][0])
+    hit_positions.append(min(hits))
+    cvrs.insert(0,cvrs[0]-1)
+    all_cvrs.append(cvrs)
+sh2_average_hit = np.mean(hit_positions)
+print('sh2 mean position of first hit:', sh2_average_hit)
 
-# #Mean Average Precision
-# for i in range(file_no):
-#     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
-#     d = 1-(shingled2_distances[i]/np.linalg.norm(shingled2_distances[i])) 
-#     c = covers[1] #get all cover relationships to selected song
-#     mAP = 0
-#     for j in range(file_no):
-#         mAP += average_precision_score(c, d)
-#     mAP = mAP/float(file_no)
-# print('sh2 mean average precision:', mAP)
+#Mean Average Precision
+for i in range(max_works):
+    #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
+    d = 1-(shingled2_distances[i]/np.linalg.norm(shingled2_distances[i])) 
+    cr = np.zeros((max_works*max_covers)) #get all cover relationships to selected song
+    for c in all_cvrs[i]:
+        cr[c] = 1
+    mAP = 0
+    for j in range(max_works):
+        mAP += average_precision_score(cr, d)
+    mAP = mAP/float(max_works)
+print('sh2 mean average precision:', mAP)
 
 
-# #---Directed Hausdorff distance shingled triples---#
+#---Directed Hausdorff distance shingled triples---#
 
-# shingled3_distances = np.zeros((file_no, file_no))
-# for i in range(file_no):
-#     for j in range(file_no):
-#         shingled3_distances[i][j] = (directed_hausdorff(all_shingled3[i], all_shingled3[j]))[0]
+shingled3_distances = np.zeros((max_works, max_works*max_covers))
+for i in range(max_works):
+    for j in range(max_covers*max_works):
+        shingled3_distances[i][j] = (directed_hausdorff(all_shingled3[i*max_covers], all_shingled3[j]))[0]
 
 # shingled3_distances_covers = []
 # shingled3_distances_noncovers = []
@@ -542,30 +562,34 @@ print('L1 mean average precision:', mAP)
 # plt.legend(loc='upper right')
 # plt.savefig(fig_dir+'Histogram-sh3.png')
 
-# #Mean position of first hit
-# hit_positions = []
-# for i in range(file_no):
-#     cvrs = [] #list of cover indeces for that work
-#     for cover_idx in range(file_no):
-#         if covers[i][cover_idx] and i!=cover_idx: #if cover and not the same work
-#             cvrs.append(cover_idx)
-#     d = shingled3_distances[i]
-#     d = np.argsort(d)
-#     hits = []
-#     for c in range(len(cvrs)): #traverse covers
-#         hits.append(np.where(d==c)[0][0])
-#     hit_positions.append(min(hits))
-# sh3_average_hit = np.mean(hit_positions)
-# print('sh3 mean position of first hit:', sh3_average_hit)
+#Mean position of first hit
+all_cvrs = []
+hit_positions = []
+for i in range(max_works):
+    d = shingled3_distances[i]
+    d = np.argsort(d)
+    hits = []
+    cvrs = []
+    for j in range(max_covers-1):
+        cvrs.append((i*max_covers)+j+1)
+    for c in range(len(cvrs)): #traverse covers
+        hits.append(np.where(d==cvrs[c])[0][0])
+    hit_positions.append(min(hits))
+    cvrs.insert(0,cvrs[0]-1)
+    all_cvrs.append(cvrs)
+sh3_average_hit = np.mean(hit_positions)
+print('sh3 mean position of first hit:', sh3_average_hit)
 
-# #Mean Average Precision
-# for i in range(file_no):
-#     #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
-#     d = 1-(shingled3_distances[i]/np.linalg.norm(shingled3_distances[i])) 
-#     c = covers[1] #get all cover relationships to selected song
-#     mAP = 0
-#     for j in range(file_no):
-#         mAP += average_precision_score(c, d)
-#     mAP = mAP/float(file_no)
-# print('sh3 mean average precision:', mAP)
+#Mean Average Precision
+for i in range(max_works):
+    #get all distances to selected song, normalize [0,1], convert to similarity metric, not dissimilarity
+    d = 1-(shingled3_distances[i]/np.linalg.norm(shingled3_distances[i])) 
+    cr = np.zeros((max_works*max_covers)) #get all cover relationships to selected song
+    for c in all_cvrs[i]:
+        cr[c] = 1
+    mAP = 0
+    for j in range(max_works):
+        mAP += average_precision_score(cr, d)
+    mAP = mAP/float(max_works)
+print('sh3 mean average precision:', mAP)
 
