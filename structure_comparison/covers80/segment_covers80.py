@@ -1,3 +1,22 @@
+#Importing
+import librosa
+import numpy as np
+import scipy
+from scipy.spatial.distance import pdist, squareform
+from scipy.interpolate import interp2d
+from scipy.sparse.csgraph import laplacian
+from scipy.spatial.distance import directed_hausdorff
+from scipy.cluster import hierarchy
+from scipy.linalg import eigh
+from scipy.ndimage import median_filter
+import cv2
+from sklearn import metrics
+import dill
+import sys
+import glob
+import os
+import random
+
 def segment(y, s, rs_size, kmin, kmax, filter):
     """structurally segments the selected audio
 
@@ -67,7 +86,7 @@ def segment(y, s, rs_size, kmin, kmax, filter):
     #normalization
     Cnorm = np.cumsum(evecs**2, axis=1)**0.5
 
-    #temporary replacement for bug
+    # temporary replacement for bug
     a_min_value = 3.6934424e-08
     Cnorm[Cnorm == 0.0] = a_min_value
     if (np.isnan(np.sum(Cnorm))):
