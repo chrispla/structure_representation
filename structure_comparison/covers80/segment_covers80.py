@@ -17,7 +17,7 @@ import glob
 import os
 import random
 
-def segment(y, s, rs_size, kmin, kmax, filter):
+def segment(y, sr, rs_size, kmin, kmax, filter):
     """structurally segments the selected audio
 
         ds_size: side length to which combined matrix is going to be resampled to
